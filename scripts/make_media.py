@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw
 from scipy.ndimage import map_coordinates
 
 ROOT = Path(__file__).resolve().parents[1]
-MEDIA = ROOT / "public/media"
+MEDIA = ROOT / "scripts/fixtures/media"
 RATE = 32000
 TAU = 2 * np.pi
 CATALOG = [

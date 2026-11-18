@@ -1,30 +1,56 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import CoverBackdrop from '../components/CoverBackdrop.vue'
-import CoverScene from '../components/CoverScene.vue'
-import { BookOpen, Orbit, SlidersHorizontal, Maximize2, Minimize2 } from 'lucide-vue-next'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ChevronLeft, SlidersHorizontal, Maximize2, Minimize2, Music2 } from 'lucide-vue-next'
+import PlaybackBackdrop from '../components/PlaybackBackdrop.vue'
 import LyricsPanel from '../components/LyricsPanel.vue'
 import StageSettings from '../components/StageSettings.vue'
+import { vHorizontalSwipe } from '../horizontalSwipe'
 import { useAppearance } from '../stores/appearance'
 import { usePlayer } from '../stores/music'
+
 const p = usePlayer()
+const route = useRoute()
+const router = useRouter()
+const backTo = computed(() => {
+  const from = route.query.from
+  return typeof from === 'string' &&
+    /^\/(library|local|my|artists|queue|playlist\/[^/?#]+)$/.test(from)
+    ? from
+    : '/library'
+})
 const appearance = useAppearance()
 const settingsOpen = ref(false)
 const immersive = ref(false)
-const ink = ref('220, 216, 173')
+const quiet = ref(false)
+const canSwipe = () => p.queue.length > 1
+let hideTimer
 let nativeScreen = false
+const wakeEvents = ['pointermove', 'pointerdown', 'keydown', 'focusin', 'focusout', 'close']
+
+function wakeControls() {
+  clearTimeout(hideTimer)
+  quiet.value = false
+  if (!immersive.value || !p.playing || settingsOpen.value) return
+  hideTimer = setTimeout(() => {
+    quiet.value = !document.querySelector(
+      'dialog[open], .now-header :focus-visible, .now-dock :focus-visible',
+    )
+  }, 2500)
+}
+watch([immersive, () => p.playing, settingsOpen], wakeControls)
+
+async function exitScreen() {
+  immersive.value = false
+  if (document.fullscreenElement) await document.exitFullscreen()
+}
 async function switchScreen() {
-  if (immersive.value) {
-    immersive.value = false
-    if (document.fullscreenElement) await document.exitFullscreen()
-    return
-  }
+  if (immersive.value) return exitScreen()
   immersive.value = true
-  p.stageMode = '舞台'
   try {
     await document.documentElement.requestFullscreen()
   } catch {
-    /* Mobile browsers can use the fixed stage. */
+    // The viewport-filling layout still works on browsers without native fullscreen.
   }
 }
 function trackScreen() {
@@ -32,79 +58,67 @@ function trackScreen() {
   nativeScreen = !!document.fullscreenElement
 }
 function escapeScreen(event) {
-  if (event.key === 'Escape' && !document.querySelector('dialog[open]')) immersive.value = false
+  if (event.key === 'Escape' && immersive.value && !document.querySelector('dialog[open]'))
+    exitScreen()
 }
 onMounted(() => {
+  if (p.song && route.query.show === 'concert') {
+    switchScreen()
+    router.replace({ query: { ...route.query, show: undefined } })
+  }
   document.addEventListener('fullscreenchange', trackScreen)
   window.addEventListener('keydown', escapeScreen)
+  for (const event of wakeEvents) document.addEventListener(event, wakeControls, true)
 })
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', trackScreen)
   window.removeEventListener('keydown', escapeScreen)
+  for (const event of wakeEvents) document.removeEventListener(event, wakeControls, true)
+  clearTimeout(hideTimer)
   if (nativeScreen && document.fullscreenElement) document.exitFullscreen().catch(() => {})
 })
 </script>
+
 <template>
   <section
-    class="stage"
-    :style="{ '--scene-ink': ink }"
+    v-if="p.song"
+    class="now-playing"
+    aria-label="正在播放"
     :class="{
-      theatre: p.stageMode === '舞台',
-      immersive,
-      'large-type': appearance.size === '放大',
-      'soft-backdrop': appearance.background === '柔焦',
-      'still-stage': appearance.reduceMotion,
-      'is-playing': p.playing,
+      'controls-quiet': quiet && immersive,
+      'photo-background': appearance.background === 'cover',
+      'reduce-motion': appearance.reduceMotion,
+      'has-lyrics': p.song.lyrics.length || p.song.plainLyrics,
     }"
   >
-    <CoverBackdrop :cover="p.song.cover" />
-    <CoverScene v-if="p.stageMode === '舞台'" @palette="ink = $event" />
-    <header class="row">
-      <span class="eyebrow">{{ p.stageMode === '舞台' ? '现场舞台' : '歌词阅读' }}</span>
-      <div class="stage-tools">
-        <div class="toggle-group">
-          <button
-            v-for="mode in ['阅读', '舞台']"
-            :key="mode"
-            :class="{ active: p.stageMode === mode }"
-            :aria-pressed="p.stageMode === mode"
-            @click="p.stageMode = mode"
-          >
-            <BookOpen v-if="mode === '阅读'" />
-            <Orbit v-else />
-            {{ mode }}
-          </button>
-        </div>
-        <button
-          class="stage-settings"
-          :aria-label="immersive ? '退出全屏' : '进入全屏'"
-          :title="immersive ? '退出全屏' : '进入全屏'"
-          @click="switchScreen"
-        >
+    <PlaybackBackdrop :cover="p.song.cover" />
+    <header class="now-header">
+      <RouterLink class="now-tool" :to="backTo" aria-label="返回" title="返回">
+        <ChevronLeft />
+      </RouterLink>
+      <div class="now-tools">
+        <button class="now-tool" title="显示" @click="settingsOpen = true">
+          <SlidersHorizontal />
+          <span>显示</span>
+        </button>
+        <button class="now-tool" :title="immersive ? '退出全屏' : '全屏'" @click="switchScreen">
           <Minimize2 v-if="immersive" />
           <Maximize2 v-else />
-        </button>
-        <button
-          class="stage-settings"
-          aria-label="舞台外观"
-          title="舞台外观"
-          @click="settingsOpen = true"
-        >
-          <SlidersHorizontal />
+          <span>{{ immersive ? '退出全屏' : '全屏' }}</span>
         </button>
       </div>
     </header>
-    <div class="stage-content">
-      <div class="stage-cover">
-        <img :src="p.song.cover" :alt="p.song.title + '封面'" />
-        <span
-          v-if="p.stageMode === '舞台' && p.song.title !== p.song.english"
-          class="stage-subtitle"
-        >
-          {{ p.song.english }}
-        </span>
-        <h1>{{ p.song.title }}</h1>
-        <p>{{ p.song.artist }} · {{ p.song.genre }}</p>
+    <div
+      v-horizontal-swipe="{ step: p.step, enabled: canSwipe }"
+      class="now-content"
+      :class="{ swipeable: canSwipe() }"
+    >
+      <div class="now-album">
+        <img :src="p.song.cover" alt="" />
+        <div class="now-meta">
+          <h1>{{ p.song.title }}</h1>
+          <p>{{ p.song.artist }}</p>
+        </div>
       </div>
       <LyricsPanel v-if="p.song.lyrics.length" :key="p.id" />
       <div
@@ -112,16 +126,17 @@ onUnmounted(() => {
         class="plain-lyrics"
         tabindex="0"
         role="region"
-        aria-label="歌词原文"
+        aria-label="歌词"
       >
         {{ p.song.plainLyrics }}
       </div>
-      <div v-else class="instrumental">
-        <span class="eyebrow">{{ p.song.vocal ? 'NOW PLAYING' : 'INSTRUMENTAL' }}</span>
-        <h2>{{ p.song.english }}</h2>
-        <p>{{ p.song.vocal ? '此曲暂无同步歌词' : '纯音乐 · 无歌词' }}</p>
-      </div>
+      <p v-else class="no-lyrics">{{ p.song.vocal ? '暂无歌词' : '纯音乐' }}</p>
     </div>
+  </section>
+  <section v-else class="library-empty">
+    <Music2 aria-hidden="true" />
+    <h1>暂无播放</h1>
+    <RouterLink class="solid" to="/library">发现音乐</RouterLink>
   </section>
   <StageSettings v-if="settingsOpen" @close="settingsOpen = false" />
 </template>

@@ -62,7 +62,7 @@ export async function loadRemoteCatalog(endpoint) {
     if (tracks.length < payload.songs.length)
       catalogNotice.value = '已跳过重复或缺少必要信息的在线曲目。'
   } catch {
-    catalogNotice.value = '在线曲库暂时无法读取，可继续使用内置和本地歌曲。'
+    catalogNotice.value = '在线曲库暂时无法读取。你可以导入本地歌曲。'
     try {
       const cached = read(cacheKey, null)
       if (cached) {
@@ -70,7 +70,7 @@ export async function loadRemoteCatalog(endpoint) {
         catalogNotice.value = '正在显示上次载入的在线曲库，播放在线音频仍需网络。'
       }
     } catch {
-      /* A damaged cache leaves the bundled catalog available. */
+      /* Local imports remain available when the cache is unreadable. */
     }
   } finally {
     clearTimeout(timer)

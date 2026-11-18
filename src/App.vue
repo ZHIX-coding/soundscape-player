@@ -1,7 +1,16 @@
 <script setup>
 import { provide, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { AudioLines, LibraryBig, Disc3, Orbit, Search, X } from 'lucide-vue-next'
+import {
+  AudioLines,
+  Compass,
+  Disc3,
+  Mic2,
+  FolderDown,
+  PanelsTopLeft,
+  Search,
+  X,
+} from 'lucide-vue-next'
 import GlobalPlayer from './components/GlobalPlayer.vue'
 import { useMusic } from './stores/music'
 const m = useMusic(),
@@ -11,12 +20,13 @@ const m = useMusic(),
   field = ref(null)
 provide('search', search)
 function find() {
-  if (route.path !== '/library') router.push('/library')
+  if (route.path !== '/library' && route.path !== '/local') router.push('/library')
 }
 function hotkey(e) {
   if (
     e.key === '/' &&
     !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) &&
+    field.value &&
     !document.querySelector('dialog[open]')
   ) {
     e.preventDefault()
@@ -27,26 +37,36 @@ onMounted(() => window.addEventListener('keydown', hotkey))
 onBeforeUnmount(() => window.removeEventListener('keydown', hotkey))
 </script>
 <template>
-  <header class="topbar">
+  <a class="skip-link" href="#main-content" @click.prevent="$refs.main.focus()">跳到主要内容</a>
+  <header v-if="!['/queue', '/player'].includes(route.path)" class="topbar">
     <div class="top-inner">
       <RouterLink class="brand" to="/library">
         <span class="brand-mark"><AudioLines /></span>
-        <b>声境</b>
-        <i></i>
-        <span>SOUNDSCAPE</span>
+        <span class="brand-name">
+          <b>声境</b>
+          <small>Soundscape</small>
+        </span>
       </RouterLink>
-      <nav>
+      <nav aria-label="主导航">
         <RouterLink to="/library">
-          <LibraryBig />
-          发现音乐
+          <Compass />
+          发现
         </RouterLink>
         <RouterLink to="/my" :class="{ 'router-link-active': route.path.startsWith('/playlist/') }">
           <Disc3 />
-          我的音乐
+          歌单
         </RouterLink>
-        <RouterLink to="/player">
-          <Orbit />
-          播放舞台
+        <RouterLink to="/artists">
+          <Mic2 />
+          歌手
+        </RouterLink>
+        <RouterLink to="/local">
+          <FolderDown />
+          本地
+        </RouterLink>
+        <RouterLink class="queue-nav" to="/queue" aria-label="队列">
+          <PanelsTopLeft aria-hidden="true" />
+          <span aria-hidden="true">队列</span>
         </RouterLink>
       </nav>
       <label class="search">
@@ -66,14 +86,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', hotkey))
       </label>
     </div>
   </header>
-  <main>
+  <main
+    id="main-content"
+    ref="main"
+    :class="{ 'wall-main': route.path === '/queue' }"
+    tabindex="-1"
+  >
     <RouterView :key="route.path" />
     <p v-if="route.matched.at(-1)?.path.includes('pathMatch')" class="empty">
       页面不存在。
       <RouterLink to="/library">返回曲库</RouterLink>
     </p>
   </main>
-  <GlobalPlayer />
+  <GlobalPlayer :compact="route.path === '/queue'" :now-playing="route.path === '/player'" />
   <Transition>
     <div v-if="m.message" class="toast" role="status">{{ m.message }}</div>
   </Transition>

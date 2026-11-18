@@ -79,12 +79,11 @@ export const usePlayer = defineStore('player', () => {
   audio.preload = 'metadata'
   const playing = ref(false),
     position = ref(old?.id === id.value ? Math.max(0, Number(old?.position) || 0) : 0),
-    duration = ref(song.value.duration)
+    duration = ref(song.value?.duration ?? 0)
   const volume = ref(Math.min(1, Math.max(0, Number.isFinite(old?.volume) ? old.volume : 0.7)))
   const modes = ['顺序播放', '随机播放', '单曲循环']
   const mode = ref(modes.includes(old?.mode) ? old.mode : modes[0])
-  const stageMode = ref(read('stage', '舞台') === '阅读' ? '阅读' : '舞台')
-  watch(stageMode, (v) => save('stage', v))
+  const seekVersion = ref(0)
   function persist() {
     save('player', {
       queue: queue.value,
@@ -97,6 +96,7 @@ export const usePlayer = defineStore('player', () => {
   let resumeAt = position.value,
     lastSecond = -1
   function load() {
+    if (!song.value) return
     audio.src = song.value.audio
     duration.value = song.value.duration
     audio.load()
@@ -124,6 +124,7 @@ export const usePlayer = defineStore('player', () => {
     music.notify('无法读取这首歌的音频，请重试或切换曲目')
   }
   async function play() {
+    if (!song.value) return
     try {
       if (audio.error) load()
       await audio.play()
@@ -151,6 +152,7 @@ export const usePlayer = defineStore('player', () => {
   function step(delta, ended = false) {
     const q = queue.value,
       idx = q.indexOf(id.value)
+    if (!q.length) return
     if (ended && mode.value === '单曲循环') {
       audio.currentTime = 0
       return play()
@@ -170,6 +172,7 @@ export const usePlayer = defineStore('player', () => {
   }
   audio.onended = () => step(1, true)
   function seek(v) {
+    seekVersion.value++
     const value = Math.min(duration.value, Math.max(0, Number(v) || 0))
     position.value = value
     if (audio.readyState) audio.currentTime = value
@@ -225,7 +228,7 @@ export const usePlayer = defineStore('player', () => {
     volume,
     mode,
     modes,
-    stageMode,
+    seekVersion,
     select,
     toggle,
     step,

@@ -43,6 +43,21 @@ button:disabled {
   opacity: 0.45;
   cursor: default;
 }
+.swipeable {
+  touch-action: pan-y pinch-zoom;
+}
+.swipeable {
+  user-select: none;
+  cursor: grab;
+}
+.exhibit-space.swipeable:not([data-swiping]) .sleeve {
+  cursor: grab;
+}
+.swipeable[data-swiping],
+.swipeable[data-swiping] button,
+.swipeable[data-swiping] a {
+  cursor: grabbing;
+}
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -120,8 +135,6 @@ small {
   background: #d1bedc;
 }
 .row,
-.gallery-hd,
-.gallery-bottom,
 .top-inner {
   display: flex;
   align-items: center;
@@ -161,8 +174,8 @@ main {
   width: 34px;
   height: 34px;
   border-radius: 11px;
-  background: linear-gradient(145deg, #deccff, #aa99df);
-  color: #302643;
+  background: #e9e4d2;
+  color: #15231f;
 }
 .brand-mark svg {
   width: 25px;
@@ -205,8 +218,9 @@ nav a {
   padding: 10px 16px;
 }
 nav a.router-link-active {
-  background: #292631;
-  color: #e0d0ff;
+  background: #ecedda0b;
+  color: #f0e9d5;
+  box-shadow: inset 0 -1px #cec5a977;
 }
 nav svg,
 .pill svg,
@@ -294,16 +308,6 @@ main {
     linear-gradient(0deg, #0c1117f0 0%, #162024bd 22%, #c7d2c721 32%, transparent 33%),
     radial-gradient(ellipse at 48% 26%, transparent, #0b1019b3 90%);
 }
-.gallery-hd {
-  align-items: flex-start;
-  padding: 25px 30px 0;
-  pointer-events: none;
-  z-index: 6;
-}
-.gallery-hd h1 {
-  font-size: clamp(29px, 2.7vw, 42px);
-  margin-top: 4px;
-}
 .gallery-count {
   font:
     13px Consolas,
@@ -316,13 +320,6 @@ main {
   font-style: normal;
   opacity: 0.45;
   margin: 0 4px;
-}
-.sleeves {
-  --size: clamp(190px, 18vw, 278px);
-  position: absolute;
-  inset: 0;
-  perspective: 1200px;
-  touch-action: pan-y;
 }
 .sleeve {
   position: absolute;
@@ -360,50 +357,6 @@ main {
   z-index: -1;
   background: linear-gradient(180deg, #16080f2e, transparent 30%, transparent 55%, #130d1bb5);
 }
-.sleeve-top,
-.sleeve-foot {
-  position: absolute;
-  left: 7%;
-  right: 7%;
-  display: flex;
-  align-items: center;
-  font:
-    600 clamp(6px, 0.55vw, 9px) Consolas,
-    monospace;
-  letter-spacing: 0.12em;
-  color: #fffaf1;
-}
-.sleeve-top {
-  top: 7%;
-}
-.sleeve-top span {
-  font-weight: 400;
-}
-.sleeve-top i {
-  margin-left: auto;
-  font-style: normal;
-}
-.sleeve strong {
-  position: absolute;
-  bottom: 13%;
-  left: 6%;
-  right: 5%;
-  font:
-    italic 500 clamp(23px, 3vw, 46px)/0.96 Georgia,
-    serif;
-  letter-spacing: -0.06em;
-  text-shadow: 0 1px 8px #0004;
-}
-.sleeve-foot {
-  bottom: 5%;
-  justify-content: space-between;
-  border-top: 1px solid #ffffff73;
-  padding-top: 3px;
-}
-.sleeve-foot svg {
-  width: 11px;
-  height: 11px;
-}
 .pos0 {
   z-index: 4;
   transform: translate(-50%, -48%) rotateY(-5deg);
@@ -428,15 +381,6 @@ main {
   transform: translate(99%, -43%) rotateY(-48deg) scale(0.68);
   filter: brightness(0.57);
 }
-.gallery-bottom {
-  padding: 0 28px 22px;
-  position: relative;
-  z-index: 5;
-  pointer-events: none;
-}
-.gallery-bottom button {
-  pointer-events: auto;
-}
 .gallery-info {
   display: flex;
   align-items: center;
@@ -445,8 +389,7 @@ main {
 .gallery-info h2 {
   font-size: 20px;
 }
-.gallery-info p,
-.stage p {
+.gallery-info p {
   font-size: 12px;
   color: #d0c9ce;
   margin-top: 5px;
@@ -482,23 +425,6 @@ main {
 }
 .circle svg {
   width: 16px;
-}
-.dots {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 5px;
-}
-.dots span {
-  width: 4px;
-  height: 4px;
-  background: #ffffff49;
-  border-radius: 4px;
-}
-.dots .active {
-  width: 19px;
-  background: #dfd3ec;
 }
 .catalog {
   margin-top: 28px;
@@ -848,41 +774,6 @@ input[type='range'] {
   z-index: 15;
   font-size: 14px;
 }
-.stage {
-  --lyric-size: clamp(19px, 2vw, 30px);
-  --active-size: clamp(29px, 3.2vw, 48px);
-  --lyric-height: 340px;
-  --type-scale: 1;
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  min-height: min(640px, 72vh);
-}
-.stage .cover-backdrop {
-  filter: blur(12px) brightness(0.55);
-}
-.stage.large-type {
-  --type-scale: 1.22;
-}
-.stage-tools {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.stage-settings {
-  border-radius: 50%;
-  width: 35px;
-  height: 35px;
-  display: grid;
-  place-items: center;
-  background: #18151d90;
-}
-.stage-settings svg {
-  width: 16px;
-}
 .appearance-field {
   border: 0;
   padding: 0;
@@ -909,177 +800,6 @@ input[type='range'] {
   margin: 0;
   accent-color: var(--accent);
 }
-.stage-content {
-  display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  align-items: center;
-  gap: 6vw;
-  max-width: 1000px;
-  margin: 45px auto;
-}
-.stage-cover img {
-  width: min(100%, 300px);
-  border-radius: 8px;
-  box-shadow: 0 12px 35px #0006;
-}
-.stage-cover h1 {
-  margin-top: 17px;
-  font-size: 32px;
-}
-.lyrics {
-  height: var(--lyric-height);
-  overflow: auto;
-  scrollbar-width: none;
-  position: relative;
-  mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent);
-  padding: calc(var(--lyric-height) / 2) 0;
-  overscroll-behavior: contain;
-}
-.lyrics button {
-  display: block;
-  text-align: left;
-  font-size: calc(var(--lyric-size) * var(--type-scale));
-  font-weight: 650;
-  color: #ffffffbf;
-  text-wrap: balance;
-  line-height: 1.5;
-  padding: 12px 0;
-}
-.lyrics button.now {
-  color: white;
-}
-.lyric-phrase {
-  display: inline-block;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-.lyrics-panel {
-  position: relative;
-  min-width: 0;
-}
-.lyrics-panel .resume-lyrics {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid #ffffff40;
-  border-radius: 24px;
-  background: #24272cf2;
-  color: #fff;
-  font-size: 13px;
-  box-shadow: 0 6px 20px #0004;
-}
-.resume-lyrics svg {
-  width: 16px;
-  height: 16px;
-}
-.lyric-time {
-  font:
-    12px/1.5 Consolas,
-    monospace;
-  color: #dcdbc9;
-  user-select: none;
-}
-.stage .lyrics-panel.is-browsing .lyrics button {
-  display: block;
-  position: relative;
-  text-align: left;
-  padding: 14px 8px 14px 48px;
-  width: 100%;
-  font-size: calc(var(--lyric-size) * var(--type-scale));
-  line-height: 1.45;
-  letter-spacing: normal;
-  opacity: 1;
-  filter: none;
-  transform: none;
-}
-.is-browsing .lyric-time {
-  position: absolute;
-  left: 3px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.lyrics .word-pending {
-  color: #ffffffa3;
-}
-.lyrics .word-current {
-  color: #ffe3ae;
-  text-shadow: 0 0 12px #ffcf9633;
-}
-.toggle-group {
-  background: #18151d90;
-  border-radius: 20px;
-  padding: 3px;
-}
-.toggle-group button {
-  padding: 7px 12px;
-}
-.toggle-group .active {
-  background: #e0d6eb;
-  color: #231b2a;
-}
-.stage.theatre .cover-backdrop {
-  filter: brightness(0.64) saturate(0.8);
-  inset: 0;
-}
-.stage.soft-backdrop .cover-backdrop {
-  inset: -32px;
-  filter: blur(25px) brightness(0.55);
-}
-.theatre .cover-backdrop img {
-  animation: stage-drift 24s ease-in-out infinite alternate;
-  animation-play-state: paused;
-}
-.theatre.is-playing .cover-backdrop img {
-  animation-play-state: running;
-}
-@keyframes stage-drift {
-  from {
-    transform: scale(1.015);
-  }
-  to {
-    transform: scale(1.065) translateY(-0.8%);
-  }
-}
-.still-stage *,
-.still-stage *::before,
-.still-stage *::after {
-  animation: none !important;
-  transition: none !important;
-}
-.theatre .stage-content {
-  grid-template-columns: 1fr;
-  margin: 20px auto;
-  text-align: center;
-}
-.theatre .stage-cover img {
-  display: none;
-}
-.theatre .stage-cover h1 {
-  font-size: 19px;
-}
-.theatre .lyrics button {
-  text-align: center;
-  width: 100%;
-  transform: scale(0.84);
-  transition:
-    transform 0.4s,
-    color 0.4s;
-}
-.theatre .lyrics .now {
-  font-size: calc(var(--active-size) * var(--type-scale));
-  transform: rotate(-2deg);
-}
-.instrumental h2 {
-  margin-top: 8px;
-  font:
-    italic 38px Georgia,
-    serif;
-}
 @media (max-width: 920px) {
   .brand > span:last-child,
   .brand i {
@@ -1094,12 +814,6 @@ input[type='range'] {
   }
   .gallery {
     height: 385px;
-  }
-  .sleeves {
-    --size: 200px;
-  }
-  .sleeve strong {
-    font-size: 30px;
   }
 }
 @media (max-width: 690px) {
@@ -1146,26 +860,8 @@ input[type='range'] {
     min-height: 0;
     border-radius: 16px;
   }
-  .gallery-hd {
-    padding: 16px;
-  }
-  .gallery-hd h1 {
-    font-size: 28px;
-  }
   .gallery-count {
     font-size: 11px;
-  }
-  .sleeves {
-    --size: 160px;
-  }
-  .sleeve strong {
-    font-size: 26px;
-  }
-  .gallery-bottom {
-    padding: 0 14px 15px;
-  }
-  .dots {
-    display: none;
   }
   .gallery-info h2 {
     font-size: 17px;
@@ -1259,44 +955,6 @@ input[type='range'] {
   .mobile-seek {
     display: block !important;
   }
-  .stage {
-    padding: 16px;
-    --lyric-height: clamp(200px, 35dvh, 280px);
-    --lyric-size: 18px;
-    --active-size: 26px;
-  }
-  .stage-content {
-    grid-template-columns: 1fr;
-    gap: 16px;
-    text-align: center;
-    margin: 25px auto;
-  }
-  .stage-cover img {
-    width: 140px;
-  }
-  .stage-cover h1 {
-    font-size: 23px;
-  }
-  .stage > header {
-    flex-wrap: wrap;
-  }
-  .stage .eyebrow {
-    font-size: 9px;
-    letter-spacing: 0.1em;
-  }
-  .stage-tools {
-    gap: 4px;
-  }
-  .stage-tools .toggle-group button {
-    padding: 7px 9px;
-  }
-  .theatre .lyrics .now {
-    transform: none;
-  }
-  .lyrics button {
-    text-align: center;
-    width: 100%;
-  }
   .gallery .eyebrow,
   .section-title .eyebrow {
     font-size: 9px;
@@ -1327,186 +985,8 @@ input[type='range'] {
   color: var(--muted);
   line-height: 1.7;
 }
-body:has(.stage.immersive) {
-  overflow: hidden;
-}
-.stage.immersive {
-  position: fixed;
-  inset: 0;
-  z-index: 8;
-  min-height: 0;
-  border: 0;
-  border-radius: 0;
-  display: flex;
-  flex-direction: column;
-  padding: clamp(18px, 4vw, 68px);
-  padding-bottom: 108px;
-  background: #121116;
-}
-.stage.immersive::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    linear-gradient(94deg, #1210189e, transparent 62%),
-    linear-gradient(0deg, #121018e0, transparent 42%);
-}
-.stage.immersive .cover-backdrop {
-  inset: -6%;
-  filter: blur(22px) brightness(0.75) saturate(1.35);
-}
-.stage.immersive .stage-content {
-  flex: 1;
-  min-height: 0;
-  width: min(1200px, 100%);
-  display: grid;
-  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.4fr);
-  gap: clamp(24px, 6vw, 100px);
-  align-content: center;
-  text-align: left;
-  margin: 0 auto;
-}
-.stage.immersive .stage-cover img {
-  display: block;
-  width: clamp(160px, 23vw, 340px);
-  border-radius: 5px;
-  box-shadow:
-    0 2px 2px #fff3 inset,
-    0 24px 65px #0d071b80;
-  transform: rotate(-3deg);
-}
-.stage.immersive .stage-cover h1 {
-  font-size: clamp(22px, 2.5vw, 44px);
-  margin-top: 24px;
-  overflow-wrap: anywhere;
-}
-.stage.immersive .lyrics {
-  --lyric-height: min(61dvh, 620px);
-}
-.stage.immersive .lyrics button {
-  text-align: left;
-  transform-origin: left center;
-}
-.stage.immersive .lyrics .now {
-  transform: none;
-  text-shadow: 0 2px 18px #0006;
-}
 @media (max-width: 690px) {
   .catalog > .row {
     flex-wrap: wrap;
-  }
-  .stage.immersive {
-    padding: 16px 18px 110px;
-  }
-  .stage.immersive .stage-content {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    align-content: stretch;
-    align-items: center;
-    padding-top: clamp(16px, 5dvh, 44px);
-    gap: 8px;
-  }
-  .stage.immersive .stage-cover {
-    display: grid;
-    grid-template-columns: 62px 1fr;
-    align-items: end;
-    gap: 0 15px;
-    text-align: left;
-  }
-  .stage.immersive .stage-cover img {
-    grid-row: span 2;
-    width: 62px;
-  }
-  .stage.immersive .stage-cover h1 {
-    margin: 0;
-    font-size: 20px;
-  }
-  .stage.immersive .stage-cover p {
-    align-self: start;
-  }
-  .stage.immersive .lyrics {
-    --lyric-height: clamp(140px, 52dvh, 510px);
-  }
-  .stage.immersive .lyrics button {
-    text-align: center;
-    transform-origin: center;
-  }
-}
-@media (max-height: 480px) and (orientation: landscape) {
-  .stage.immersive .stage-cover img {
-    display: none;
-  }
-  .stage.immersive .lyrics {
-    --lyric-height: 43dvh;
-  }
-}
-
-.gallery-lyrics {
-  min-height: 34px;
-  padding: 0 13px;
-  border-radius: 22px;
-  background: #141b1790;
-  border: 1px solid #ffffff45;
-  color: #fff;
-  font-size: 12px;
-}
-.lyrics .word-current {
-  color: transparent;
-  text-shadow: none;
-  background: linear-gradient(90deg, #fff8cf var(--ink, 0%), #ffffff82 var(--ink, 0%));
-  background-clip: text;
-  -webkit-background-clip: text;
-}
-.lyrics .word-pending {
-  color: #ffffff82;
-}
-.theatre .lyrics button {
-  transform: none;
-  transition:
-    color 0.32s,
-    opacity 0.32s,
-    filter 0.32s;
-}
-.theatre .lyrics button[data-distance='2'] {
-  opacity: 0.61;
-}
-.theatre .lyrics button[data-distance='3'] {
-  opacity: 0.38;
-  filter: blur(0.7px);
-}
-.theatre .lyrics button.now {
-  transform: none;
-  letter-spacing: 0.012em;
-  line-height: 1.28;
-  padding-block: 18px;
-}
-.stage.theatre .lyrics button:focus-visible {
-  opacity: 1;
-  filter: none;
-}
-.stage.theatre:has(.word-current) .lyrics .now {
-  text-shadow: none;
-}
-.stage.immersive .lyrics {
-  min-width: 0;
-}
-@media (min-width: 691px) {
-  .theatre .lyrics .now {
-    font-size: calc(clamp(32px, 3.65vw, 62px) * var(--type-scale));
-  }
-}
-@media (max-width: 400px) {
-  .gallery-lyrics {
-    font-size: 11px;
-    padding: 0 7px;
-  }
-  .gallery-bottom .actions {
-    gap: 4px;
-  }
-  .gallery-bottom {
-    padding-inline: 10px;
   }
 }

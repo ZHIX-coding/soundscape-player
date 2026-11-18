@@ -11,44 +11,7 @@ const wordIndex = ref(-1)
 const speaking = ref(false)
 let cueTimer
 let paintFrame
-let entrance
-let entranceLine
-function syncEntrance() {
-  const line = p.song.lyrics[active.value]
-  const el = lines.value?.querySelector('.now .lyric-text')
-  const elapsed = line ? Math.max(0, (p.mediaTime() - line.start) * 1000) : Infinity
-  if (
-    !el ||
-    elapsed >= 850 ||
-    browsing.value ||
-    p.stageMode !== '舞台' ||
-    appearance.reduceMotion ||
-    matchMedia('(prefers-reduced-motion: reduce)').matches
-  ) {
-    entrance?.cancel()
-    entrance = null
-    entranceLine = null
-    return
-  }
-  if (el !== entranceLine) {
-    entrance?.cancel()
-    entranceLine = el
-    const side = active.value % 2 ? -1 : 1
-    entrance = el.animate(
-      [
-        {
-          transform: `perspective(700px) translate3d(${side * 34}px,10px,-105px) rotateY(${side * 12}deg)`,
-          opacity: 0.56,
-        },
-        { transform: 'none', opacity: 1 },
-      ],
-      { duration: 850, easing: 'cubic-bezier(.18,.8,.22,1)', fill: 'both' },
-    )
-  }
-  entrance.currentTime = elapsed
-  if (p.playing) entrance.play()
-  else entrance.pause()
-}
+let scrollFrame
 function paintWord() {
   cancelAnimationFrame(paintFrame)
   const line = p.song.lyrics[active.value]
@@ -62,7 +25,8 @@ function paintWord() {
   }
   const fraction = Math.max(0, Math.min(1, (p.mediaTime() - word.start) / (end - word.start)))
   element.style.setProperty('--ink', (fraction * 100).toFixed(1) + '%')
-  if (p.playing && fraction < 1 && !document.hidden) paintFrame = requestAnimationFrame(paintWord)
+  if (p.playing && fraction < 1 && !document.hidden && motionAllowed())
+    paintFrame = requestAnimationFrame(paintWord)
 }
 // Media events resynchronise after a seek or track change. Between events,
 // wake at the next recorded onset and read the audio clock again.
@@ -77,7 +41,6 @@ function syncLyrics() {
   speaking.value = wordIndex.value >= 0 && t < (line.end ?? Infinity)
   nextTick(() => {
     paintWord()
-    syncEntrance()
   })
   const next =
     words[wordIndex.value + 1]?.start ??
@@ -89,32 +52,24 @@ function syncLyrics() {
 }
 watch([() => p.position, () => p.playing, () => p.id], syncLyrics, { immediate: true })
 onUnmounted(() => {
-  entrance?.cancel()
   clearTimeout(cueTimer)
   cancelAnimationFrame(paintFrame)
+  cancelAnimationFrame(scrollFrame)
 })
-const lyricPhrases = computed(() =>
-  p.song.lyrics.map((line) => {
-    const words =
-      line.words ??
-      (line.text.match(/[^，。！？、；]+[，。！？、；]*/gu) ?? [line.text]).map((text) => ({
-        text,
-      }))
-    const groups = [[]]
-    words.forEach((word, index) => {
-      groups.at(-1).push({ text: word.text, index })
-      if (index + 1 < words.length && /[，。！？、；]$/u.test(word.text)) groups.push([])
-    })
-    return groups
-  }),
-)
 const appearance = useAppearance()
 const browsing = ref(false)
-watch([browsing, () => appearance.reduceMotion, () => p.stageMode], () => nextTick(syncEntrance))
+const showList = computed(() => browsing.value || appearance.lyrics === 'list')
+const motionAllowed = () =>
+  !appearance.reduceMotion && !matchMedia('(prefers-reduced-motion: reduce)').matches
+
+function lineLength(text) {
+  const width = [...text].reduce((sum, char) => sum + (/[^\u0000-\u00ff]/.test(char) ? 1 : 0.53), 0)
+  return width > 37 ? 'long' : width > 24 ? 'medium' : 'short'
+}
+
 function browse() {
   if (browsing.value) return
-  const box = lines.value
-  box.scrollTo({ top: box.scrollTop, behavior: 'instant' })
+  cancelAnimationFrame(scrollFrame)
   browsing.value = true
 }
 function resume() {
@@ -126,26 +81,44 @@ function jump(start) {
   resume()
 }
 function keyboardBrowse(event) {
-  if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', 'Tab'].includes(event.key))
-    browse()
+  if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes(event.key)) browse()
 }
-let touchY = 0
-function alignLine(smooth = false) {
+let touchStart
+function touchBrowse(event) {
+  const touch = event.touches[0]
+  if (!touchStart || event.touches.length !== 1) return
+  const dx = Math.abs(touch.clientX - touchStart.clientX)
+  const dy = Math.abs(touch.clientY - touchStart.clientY)
+  if (dy > 6 && dy > dx) browse()
+}
+function alignLine(smooth = false, afterSeek = false) {
+  cancelAnimationFrame(scrollFrame)
   const box = lines.value
-  if (!box || browsing.value) return
+  if (!box || (browsing.value && !afterSeek)) return
   const line = box.querySelector('.now') ?? box.firstElementChild
   if (!line) return
-  const motion = !appearance.reduceMotion && !matchMedia('(prefers-reduced-motion: reduce)').matches
-  box.scrollTo({
-    top: line.offsetTop - (box.clientHeight - line.offsetHeight) / 2,
-    behavior: smooth && motion ? 'smooth' : 'instant',
-  })
+  const target = line.offsetTop - (box.clientHeight - line.offsetHeight) / 2
+  const start = box.scrollTop
+  if (!smooth || !motionAllowed() || Math.abs(target - start) < 2) {
+    box.scrollTop = target
+    return
+  }
+  const startedAt = performance.now()
+  function move(now) {
+    const t = Math.max(0, Math.min(1, (now - startedAt) / 240))
+    box.scrollTop = start + (target - start) * (1 - (1 - t) ** 3)
+    if (t < 1) scrollFrame = requestAnimationFrame(move)
+  }
+  scrollFrame = requestAnimationFrame(move)
 }
 watch(
-  [active, () => p.id, () => p.stageMode, () => appearance.size, () => appearance.reduceMotion],
-  async ([index, id], previous) => {
+  [active, () => p.seekVersion, () => appearance.lyrics, () => appearance.reduceMotion],
+  async ([index, seekVersion, layout, reduced], previous) => {
     await nextTick()
-    alignLine(previous?.[1] === id && index !== previous[0])
+    const natural =
+      previous?.[1] === seekVersion && previous?.[2] === layout && previous?.[3] === reduced
+    const afterSeek = previous?.[1] !== undefined && previous[1] !== seekVersion
+    alignLine(!!natural && p.playing && index === previous[0] + 1, afterSeek)
   },
   { immediate: true },
 )
@@ -161,7 +134,7 @@ watch(lines, (box, previous) => {
 onUnmounted(() => resize?.disconnect())
 </script>
 <template>
-  <div class="lyrics-panel" :class="{ 'is-browsing': browsing }">
+  <div class="lyrics-panel" :class="{ 'is-browsing': browsing, 'lyric-list': showList }">
     <div
       ref="lines"
       class="lyrics"
@@ -170,15 +143,11 @@ onUnmounted(() => resize?.disconnect())
       tabindex="0"
       @wheel.passive="
         (e) => {
-          if (e.deltaY) browse()
+          if (!e.shiftKey && !e.ctrlKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) browse()
         }
       "
-      @touchstart.passive="touchY = $event.touches[0].clientY"
-      @touchmove.passive="
-        (e) => {
-          if (Math.abs(e.touches[0].clientY - touchY) > 6) browse()
-        }
-      "
+      @touchstart.passive="touchStart = $event.touches[0]"
+      @touchmove.passive="touchBrowse"
       @keydown="keyboardBrowse"
     >
       <button
@@ -186,25 +155,27 @@ onUnmounted(() => resize?.disconnect())
         :key="p.id + i"
         :class="{ now: i === active }"
         :data-distance="Math.min(3, Math.abs(i - Math.max(0, active)))"
-        :data-side="i < active ? 'past' : 'next'"
+        :data-length="lineLength(l.text)"
+        :tabindex="showList || Math.abs(i - Math.max(0, active)) < 3 ? undefined : -1"
         :aria-current="i === active ? 'true' : undefined"
         :aria-label="l.text"
         @click="jump(l.start)"
       >
         <span v-if="browsing" class="lyric-time" aria-hidden="true">{{ time(l.start) }}</span>
         <span class="lyric-text">
-          <span v-for="(phrase, part) in lyricPhrases[i]" :key="part" class="lyric-phrase">
+          <template v-if="i === active && l.words">
             <span
-              v-for="word in phrase"
-              :key="word.index"
+              v-for="(word, index) in l.words"
+              :key="index"
               :class="{
-                'word-pending': i === active && l.words && word.index > wordIndex,
-                'word-current': i === active && speaking && word.index === wordIndex,
+                'word-pending': index > wordIndex,
+                'word-current': speaking && index === wordIndex,
               }"
             >
               {{ word.text }}
             </span>
-          </span>
+          </template>
+          <template v-else>{{ l.text }}</template>
         </span>
       </button>
     </div>

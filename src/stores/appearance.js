@@ -4,16 +4,17 @@ import { read, save } from '../persistence'
 
 export const useAppearance = defineStore('appearance', () => {
   const stored = read('appearance', {})
-  const size = ref(['标准', '放大'].includes(stored?.size) ? stored.size : '标准')
-  const background = ref(['封面', '柔焦'].includes(stored?.background) ? stored.background : '封面')
+  const lyrics = ref(stored?.lyrics ?? (read('stage', '') === '阅读' ? 'list' : 'focus'))
+  const background = ref(['cover', '封面'].includes(stored?.background) ? 'cover' : 'color')
   const reduceMotion = ref(stored?.reduceMotion === true)
+  if (lyrics.value !== 'list') lyrics.value = 'focus'
 
-  watch([size, background, reduceMotion], () => {
+  watch([lyrics, background, reduceMotion], () => {
     save('appearance', {
-      size: size.value,
+      lyrics: lyrics.value,
       background: background.value,
       reduceMotion: reduceMotion.value,
     })
   })
-  return { size, background, reduceMotion }
+  return { lyrics, background, reduceMotion }
 })

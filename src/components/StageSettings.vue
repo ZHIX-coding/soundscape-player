@@ -3,41 +3,45 @@ import Modal from './Modal.vue'
 import { useAppearance } from '../stores/appearance'
 const appearance = useAppearance()
 const emit = defineEmits(['close'])
+const choices = [
+  {
+    key: 'lyrics',
+    label: '歌词',
+    options: [
+      ['focus', '焦点'],
+      ['list', '列表'],
+    ],
+  },
+  {
+    key: 'background',
+    label: '背景',
+    options: [
+      ['color', '取色'],
+      ['cover', '封面'],
+    ],
+  },
+]
 </script>
 
 <template>
-  <Modal title="舞台外观" @close="emit('close')">
-    <fieldset class="appearance-field">
-      <legend>歌词字号</legend>
+  <Modal title="显示" @close="emit('close')">
+    <fieldset v-for="choice in choices" :key="choice.key" class="appearance-field">
+      <legend>{{ choice.label }}</legend>
       <div class="toggle-group">
         <button
-          v-for="size in ['标准', '放大']"
-          :key="size"
-          :aria-pressed="appearance.size === size"
-          :class="{ active: appearance.size === size }"
-          @click="appearance.size = size"
+          v-for="[id, label] in choice.options"
+          :key="id"
+          :class="{ active: appearance[choice.key] === id }"
+          :aria-pressed="appearance[choice.key] === id"
+          @click="appearance[choice.key] = id"
         >
-          {{ size }}
-        </button>
-      </div>
-    </fieldset>
-    <fieldset class="appearance-field">
-      <legend>舞台背景</legend>
-      <div class="toggle-group">
-        <button
-          v-for="background in ['封面', '柔焦']"
-          :key="background"
-          :aria-pressed="appearance.background === background"
-          :class="{ active: appearance.background === background }"
-          @click="appearance.background = background"
-        >
-          {{ background }}
+          {{ label }}
         </button>
       </div>
     </fieldset>
     <label class="motion-choice">
       <input v-model="appearance.reduceMotion" type="checkbox" />
-      减少舞台动效
+      减少动效
     </label>
   </Modal>
 </template>
