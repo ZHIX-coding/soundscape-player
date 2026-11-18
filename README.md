@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-打开终端输出的本地地址。未配置项目曲库时，「发现」为空。也可以在「本地」点击「导入歌曲」，选择音频文件并添加专辑封面和 LRC 歌词，导入的歌曲保存在当前浏览器。
+打开终端输出的本地地址。「发现」会载入随项目提供的 176 首歌曲、对应封面和同步歌词。也可以在「本地」点击「导入歌曲」，选择音频文件并添加专辑封面和 LRC 歌词，导入的歌曲保存在当前浏览器。
 
 ## 构建与检查
 
@@ -44,9 +44,9 @@ npm run preview
 
 ### 接入后台曲库
 
-项目自带曲库默认读取 `public/music-library/catalog.json`。将可用的 MP3 和封面置于这个目录，并向 JSON 的 `songs` 添加记录。`audio` 和 `cover` 可以写相对路径。目录记录出现在「发现」，浏览器导入的文件出现在「本地」。「队列」提供拼贴和列表两种查看方式。
+项目自带曲库默认读取 `public/music-library/catalog.json`。内置音频位于 `audio/`，专辑封面位于 `covers/`。添加歌曲时，将素材放入相应目录，再向 JSON 的 `songs` 添加记录。`audio` 和 `cover` 可以写相对路径。目录记录出现在「发现」，浏览器导入的文件出现在「本地」。「队列」提供拼贴和列表两种查看方式。
 
-本机试听曲库可放在项目根目录的 `music-library.local/`，在 `.env.development.local` 中设置 `VITE_CATALOG_URL=./music-library.local/catalog.json`，然后重启开发服务。该目录仅用于开发预览，普通构建和 Git 提交均排除这些本机音频。使用自建后台时，可按下文配置接口地址。
+本机试听曲库可放在项目根目录的 `music-library.local/`，在 `.env.development.local` 中设置 `VITE_CATALOG_URL=./music-library.local/catalog.json`，然后重启开发服务。该目录仅用于开发预览，普通构建和 Git 提交使用 `public/music-library/` 中的内置曲库。使用自建后台时，可按下文配置接口地址。
 
 在项目根目录的 `.env.local` 中设置 `VITE_CATALOG_URL=/api/songs`，开发时重启服务，生产部署时重新构建。前端启动时 GET 这个地址，在线曲目按接口顺序出现在本地导入曲目前面。后台新增或更新歌曲后，刷新页面即可取得曲库。
 
@@ -78,7 +78,7 @@ npm run preview
 - `src/pages/Library.vue` 在 computed 中对曲库做筛选和排序，`src/components/SongTable.vue` 将结果渲染为统一的可操作列表。详情和收藏复用同一组件。
 - `src/components/LyricsPanel.vue` 依据实际音频进度找到最后一条已开始的歌词，定位并高亮。有词时间戳时，在下一词起点重新读取音频时钟，切换高亮。暂停和拖动会重新定位，只有行级数据的曲目沿用整行高亮。系统开启减少动态效果时，切换和滚动相应简化。
 - `src/components/PlaylistForm.vue` 收集输入，由 store 统一校验与保存。曲库、收藏和歌单视图共享即时更新。
-- `src/data/songs.js` 管理曲库。用户音频来自本地导入或配置的后台接口。旧演示素材保存在 `scripts/fixtures/media/` 供回归测试。
+- `src/data/songs.js` 管理曲库。音频可来自项目内置目录、本地导入或配置的后台接口。旧演示素材保存在 `scripts/fixtures/media/` 供回归测试。
 - `scripts/check-browser.mjs` 使用 Playwright 操作正式界面，包括断开一首音频的请求后重试。
 
 ## 阶段验收与已知限制

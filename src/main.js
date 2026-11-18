@@ -35,9 +35,10 @@ loadBrowserTestSongs()
   .then(() =>
     Promise.all([
       restoreImports().catch(() => console.warn('本地音乐存储暂不可用')),
-      loadRemoteCatalog(
-        import.meta.env.VITE_CATALOG_URL || import.meta.env.BASE_URL + 'music-library/catalog.json',
-      ),
+      import.meta.env.MODE !== 'browser-test' &&
+        loadRemoteCatalog(
+          import.meta.env.VITE_CATALOG_URL || import.meta.env.BASE_URL + 'music-library/catalog.json',
+        ),
     ]),
   )
   .then(() => {
