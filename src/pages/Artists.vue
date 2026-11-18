@@ -1,49 +1,62 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { ChevronLeft, Mic2 } from 'lucide-vue-next'
-import SongTable from '../components/SongTable.vue'
+import { computed, inject } from 'vue'
+import { useRoute } from 'vue-router'
+import { ChevronLeft } from 'lucide-vue-next'
+import CoverWall from '../components/CoverWall.vue'
+import TrackWall from '../components/TrackWall.vue'
 import { songs } from '../data/songs'
 
-const selected = ref('')
+const route = useRoute()
+const search = inject('search')
+const query = computed(() => search.value.trim().toLowerCase())
 const artists = computed(() => {
   const groups = new Map()
   for (const song of songs) {
-    const name = song.artist || '未知歌手'
-    if (!groups.has(name)) groups.set(name, [])
-    groups.get(name).push(song)
+    if (!groups.has(song.artist)) groups.set(song.artist, [])
+    groups.get(song.artist).push(song)
   }
-  return [...groups.entries()].sort(([first], [second]) => first.localeCompare(second, 'zh-CN'))
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, 'zh-CN'))
+    .map(([name, tracks]) => ({ id: name, tracks }))
 })
+const selected = computed(() => artists.value.find((artist) => artist.id === route.params.name))
+const items = computed(() =>
+  artists.value.filter((artist) => artist.id.toLowerCase().includes(query.value)),
+)
 </script>
 
 <template>
-  <section v-if="!artists.length" class="library-empty">
-    <Mic2 aria-hidden="true" />
-    <h1>歌手</h1>
-    <p>曲库中的歌曲会按歌手归类。</p>
-    <RouterLink class="pill" to="/local">打开本地曲库</RouterLink>
-  </section>
-  <section v-else-if="selected" class="artists-view">
-    <button class="pill" @click="selected = ''">
-      <ChevronLeft />
-      全部歌手
-    </button>
-    <h1>{{ selected }}</h1>
-    <SongTable :items="artists.find(([name]) => name === selected)?.[1] ?? []" />
-  </section>
-  <section v-else class="artists-view">
-    <h1>歌手</h1>
-    <div class="artist-grid">
-      <button
-        v-for="[name, tracks] in artists"
-        :key="name"
-        class="artist-card"
-        @click="selected = name"
-      >
-        <img :src="tracks[0].cover" alt="" loading="lazy" />
-        <b>{{ name }}</b>
-        <small>{{ tracks.length }} 首歌曲</small>
-      </button>
-    </div>
+  <TrackWall v-if="selected" :label="selected.id" :tracks="selected.tracks">
+    <template #back>
+      <RouterLink to="/artists" class="icon" aria-label="返回歌手"><ChevronLeft /></RouterLink>
+    </template>
+  </TrackWall>
+  <section v-else class="cover-room">
+    <header class="cover-toolbar">
+      <div class="cover-heading"><h1>歌手</h1></div>
+    </header>
+    <CoverWall :items="items" label="歌手封面" :filter="query" :memory-key="'/artists:' + query">
+      <template #default="{ item, index, tabindex }">
+        <RouterLink
+          class="cover-open"
+          :tabindex="tabindex"
+          :to="{ name: 'artist', params: { name: item.id } }"
+        >
+          <img
+            :src="item.tracks[0].cover"
+            alt=""
+            :loading="index < 12 ? 'eager' : 'lazy'"
+            decoding="async"
+          />
+          <span class="cover-caption">
+            <b>{{ item.id }}</b>
+            <small>{{ item.tracks.length }} 首</small>
+          </span>
+        </RouterLink>
+      </template>
+      <template #empty>
+        <p class="cover-empty">{{ query ? '没有匹配的歌手' : '暂无歌手' }}</p>
+      </template>
+    </CoverWall>
   </section>
 </template>

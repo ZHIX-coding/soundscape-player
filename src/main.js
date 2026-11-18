@@ -13,6 +13,7 @@ import './exhibition.css'
 import './room.css'
 import './queue.css'
 import './stage.css'
+import './covers.css'
 import { restoreImports } from './data/local'
 import { loadRemoteCatalog } from './data/remote'
 import { loadBrowserTestSongs } from './data/songs'
@@ -25,6 +26,7 @@ const router = createRouter({
     { path: '/local', component: Library, props: { local: true } },
     { path: '/my', component: Collection },
     { path: '/artists', component: Artists },
+    { path: '/artists/:name', name: 'artist', component: Artists },
     { path: '/queue', component: QueueWall },
     { path: '/playlist/:id', component: Playlist },
     { path: '/player', component: Stage },
@@ -37,7 +39,8 @@ loadBrowserTestSongs()
       restoreImports().catch(() => console.warn('本地音乐存储暂不可用')),
       import.meta.env.MODE !== 'browser-test' &&
         loadRemoteCatalog(
-          import.meta.env.VITE_CATALOG_URL || import.meta.env.BASE_URL + 'music-library/catalog.json',
+          import.meta.env.VITE_CATALOG_URL ||
+            import.meta.env.BASE_URL + 'music-library/catalog.json',
         ),
     ]),
   )

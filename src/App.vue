@@ -1,27 +1,18 @@
 <script setup>
-import { provide, ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import {
-  AudioLines,
-  Compass,
-  Disc3,
-  Mic2,
-  FolderDown,
-  PanelsTopLeft,
-  Search,
-  X,
-} from 'lucide-vue-next'
+import { computed, provide, reactive, ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
+import { AudioLines, PanelsTopLeft, Search, X } from 'lucide-vue-next'
 import GlobalPlayer from './components/GlobalPlayer.vue'
 import { useMusic } from './stores/music'
 const m = useMusic(),
-  router = useRouter(),
   route = useRoute(),
-  search = ref(''),
+  searches = reactive(new Map()),
+  search = computed({
+    get: () => searches.get(route.path) ?? '',
+    set: (value) => searches.set(route.path, value),
+  }),
   field = ref(null)
 provide('search', search)
-function find() {
-  if (route.path !== '/library' && route.path !== '/local') router.push('/library')
-}
 function hotkey(e) {
   if (
     e.key === '/' &&
@@ -44,41 +35,32 @@ onBeforeUnmount(() => window.removeEventListener('keydown', hotkey))
         <span class="brand-mark"><AudioLines /></span>
         <span class="brand-name">
           <b>声境</b>
-          <small>Soundscape</small>
         </span>
       </RouterLink>
       <nav aria-label="主导航">
-        <RouterLink to="/library">
-          <Compass />
-          发现
-        </RouterLink>
+        <RouterLink to="/library">发现</RouterLink>
         <RouterLink to="/my" :class="{ 'router-link-active': route.path.startsWith('/playlist/') }">
-          <Disc3 />
           歌单
         </RouterLink>
-        <RouterLink to="/artists">
-          <Mic2 />
+        <RouterLink
+          to="/artists"
+          :class="{ 'router-link-active': route.path.startsWith('/artists/') }"
+        >
           歌手
         </RouterLink>
-        <RouterLink to="/local">
-          <FolderDown />
-          本地
-        </RouterLink>
-        <RouterLink class="queue-nav" to="/queue" aria-label="队列">
+        <RouterLink to="/local">本地</RouterLink>
+        <RouterLink
+          class="queue-nav"
+          :to="{ path: '/queue', query: { from: route.path } }"
+          aria-label="队列"
+        >
           <PanelsTopLeft aria-hidden="true" />
           <span aria-hidden="true">队列</span>
         </RouterLink>
       </nav>
       <label class="search">
         <Search />
-        <input
-          ref="field"
-          v-model="search"
-          aria-label="搜索曲库"
-          placeholder="搜索曲目、艺术家"
-          @input="find"
-          @keyup.enter="find"
-        />
+        <input ref="field" v-model="search" aria-label="搜索曲库" placeholder="搜索" />
         <button v-if="search" class="icon" aria-label="清除搜索" @click="search = ''">
           <X />
         </button>

@@ -1,41 +1,47 @@
 <script setup>
 import Modal from './Modal.vue'
-import { useAppearance } from '../stores/appearance'
+import { lyricLayouts, useAppearance } from '../stores/appearance'
 const appearance = useAppearance()
 const emit = defineEmits(['close'])
-const choices = [
-  {
-    key: 'lyrics',
-    label: '歌词',
-    options: [
-      ['focus', '焦点'],
-      ['list', '列表'],
-    ],
-  },
-  {
-    key: 'background',
-    label: '背景',
-    options: [
-      ['color', '取色'],
-      ['cover', '封面'],
-    ],
-  },
-]
 </script>
 
 <template>
   <Modal title="显示" @close="emit('close')">
-    <fieldset v-for="choice in choices" :key="choice.key" class="appearance-field">
-      <legend>{{ choice.label }}</legend>
+    <fieldset class="appearance-field">
+      <legend>歌词</legend>
+      <div class="layout-choices">
+        <button
+          v-for="{ id, label } in lyricLayouts"
+          :key="id"
+          :aria-pressed="appearance.lyrics === id"
+          @click="appearance.lyrics = id"
+        >
+          <span class="layout-preview" :class="'preview-' + id" aria-hidden="true">
+            <i></i>
+            <b></b>
+            <b></b>
+            <b></b>
+          </span>
+          {{ label }}
+        </button>
+      </div>
+    </fieldset>
+    <fieldset v-if="appearance.lyrics !== 'poster'" class="appearance-field">
+      <legend>背景</legend>
       <div class="toggle-group">
         <button
-          v-for="[id, label] in choice.options"
-          :key="id"
-          :class="{ active: appearance[choice.key] === id }"
-          :aria-pressed="appearance[choice.key] === id"
-          @click="appearance[choice.key] = id"
+          :aria-pressed="appearance.background === 'color'"
+          :class="{ active: appearance.background === 'color' }"
+          @click="appearance.background = 'color'"
         >
-          {{ label }}
+          取色
+        </button>
+        <button
+          :aria-pressed="appearance.background === 'cover'"
+          :class="{ active: appearance.background === 'cover' }"
+          @click="appearance.background = 'cover'"
+        >
+          封面
         </button>
       </div>
     </fieldset>

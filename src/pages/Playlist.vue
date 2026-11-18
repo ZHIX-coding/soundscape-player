@@ -1,107 +1,131 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Play, Plus, Pencil, Trash2 } from 'lucide-vue-next'
+import { ChevronLeft, Pencil, Play, Plus, Trash2 } from 'lucide-vue-next'
 import { songs } from '../data/songs'
 import { useMusic, usePlayer } from '../stores/music'
-import { time } from '../persistence'
 import Modal from '../components/Modal.vue'
 import PlaylistForm from '../components/PlaylistForm.vue'
-import SongTable from '../components/SongTable.vue'
-import PlaylistArtwork from '../components/PlaylistArtwork.vue'
-import CoverBackdrop from '../components/CoverBackdrop.vue'
-const route = useRoute(),
-  router = useRouter(),
-  m = useMusic(),
-  p = usePlayer(),
-  panel = ref(''),
-  query = ref('')
-const list = computed(() => m.lists.find((l) => l.id === route.params.id))
-const all = computed(() => (list.value?.songIds || []).map((id) => songs.find((s) => s.id === id)))
-const items = computed(() =>
-  all.value.filter((s) =>
-    (s.title + s.artist).toLowerCase().includes(query.value.trim().toLowerCase()),
+import TrackWall from '../components/TrackWall.vue'
+
+const route = useRoute()
+const router = useRouter()
+const music = useMusic()
+const player = usePlayer()
+const panel = ref('')
+const pickerQuery = ref('')
+const favorite = computed(() => route.params.id === 'favorites')
+const list = computed(() => music.lists.find((item) => item.id === route.params.id))
+const tracks = computed(() => {
+  const byId = new Map(songs.map((song) => [song.id, song]))
+  return (favorite.value ? music.favorites : (list.value?.songIds ?? []))
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+})
+const available = computed(() =>
+  songs.filter((song) =>
+    [song.title, song.artist]
+      .join(' ')
+      .toLowerCase()
+      .includes(pickerQuery.value.trim().toLowerCase()),
   ),
 )
+function closePicker() {
+  panel.value = ''
+  pickerQuery.value = ''
+}
 function remove(id) {
-  list.value.songIds = list.value.songIds.filter((x) => x !== id)
-  m.notify('已从歌单移除')
+  list.value.songIds = list.value.songIds.filter((songId) => songId !== id)
+  music.notify('已从歌单移除')
 }
 function destroy() {
-  m.lists = m.lists.filter((l) => l.id !== list.value.id)
-  panel.value = ''
+  music.lists = music.lists.filter((item) => item.id !== list.value.id)
   router.replace('/my')
-  m.notify('已删除歌单')
+  music.notify('已删除歌单')
 }
 </script>
+
 <template>
-  <RouterLink class="back" to="/my">← 我的音乐</RouterLink>
-  <template v-if="list">
-    <div class="playlist-poster">
-      <CoverBackdrop v-if="all.length" :cover="all[0].cover" />
-      <div class="poster-art">
-        <i aria-hidden="true" class="record-disc"></i>
-        <PlaylistArtwork :tracks="all" />
-      </div>
-      <div class="poster-copy">
-        <small>自建歌单 · {{ all.length }} 首曲目</small>
-        <h1>{{ list.name }}</h1>
-        <p v-if="list.description">{{ list.description }}</p>
-        <p v-if="all.length">已知总时长 {{ time(all.reduce((n, s) => n + s.duration, 0)) }}</p>
-        <button v-if="all.length" class="exhibit-play" @click="p.select(all[0].id, list.songIds)">
-          <Play />
-          播放全部
-        </button>
-        <button v-else class="exhibit-play" @click="panel = 'add'">
-          <Plus />
-          添加第一首歌
-        </button>
-      </div>
-    </div>
-    <div class="toolbar">
-      <button class="pill" @click="panel = 'add'">
-        <Plus />
-        添加歌曲
-      </button>
-      <button class="pill" @click="panel = 'edit'">
-        <Pencil />
-        编辑
-      </button>
-      <button class="pill" @click="panel = 'delete'">
-        <Trash2 />
-        删除
-      </button>
-    </div>
-    <input
-      v-model="query"
-      class="local-search"
-      aria-label="搜索歌单"
-      placeholder="搜索歌单内的歌曲"
-    />
-    <SongTable v-if="items.length" :items="items" removable @remove="remove" />
-    <p v-else class="empty">
-      {{ all.length ? '没有找到匹配曲目' : '这张歌单还是空的，可以添加第一首歌了。' }}
-    </p>
-    <PlaylistForm v-if="panel === 'edit'" :list="list" @close="panel = ''" />
-    <Modal v-if="panel === 'add'" title="添加歌曲" @close="panel = ''">
+  <TrackWall
+    v-if="list || favorite"
+    :label="favorite ? '我喜欢' : list.name"
+    :tracks="tracks"
+    :removable="!!list"
+    @remove="remove"
+  >
+    <template #back>
+      <RouterLink to="/my" class="icon" aria-label="返回歌单"><ChevronLeft /></RouterLink>
+    </template>
+    <template #actions>
       <button
-        v-for="s in songs"
-        :key="s.id"
-        class="menu-item row"
-        :disabled="list.songIds.includes(s.id)"
-        @click="m.add(list.id, s.id)"
+        v-if="tracks.length"
+        class="pill"
+        aria-label="播放全部"
+        @click="
+          player.select(
+            tracks[0].id,
+            tracks.map((song) => song.id),
+          )
+        "
       >
-        {{ s.title }}
-        <small>{{ list.songIds.includes(s.id) ? '已添加' : '添加 +' }}</small>
+        <Play />
+        <span>播放全部</span>
       </button>
-    </Modal>
-    <Modal v-if="panel === 'delete'" title="删除这张歌单？" @close="panel = ''">
-      <p>「{{ list.name }}」中的曲目仍可在曲库找到。</p>
-      <div class="actions">
-        <button class="pill" @click="panel = ''">取消</button>
-        <button class="solid" @click="destroy">确认删除</button>
-      </div>
-    </Modal>
-  </template>
-  <p v-else class="empty">找不到这张歌单，可能已被删除。</p>
+      <button v-if="list" class="pill" aria-label="添加歌曲" @click="panel = 'add'">
+        <Plus />
+        <span>添加歌曲</span>
+      </button>
+      <button
+        v-if="list"
+        class="icon"
+        aria-label="编辑歌单"
+        title="编辑歌单"
+        @click="panel = 'edit'"
+      >
+        <Pencil />
+      </button>
+      <button
+        v-if="list"
+        class="icon"
+        aria-label="删除歌单"
+        title="删除歌单"
+        @click="panel = 'delete'"
+      >
+        <Trash2 />
+      </button>
+    </template>
+  </TrackWall>
+  <div v-else class="library-empty">
+    <p>找不到这张歌单</p>
+    <RouterLink class="pill" to="/my">返回歌单</RouterLink>
+  </div>
+  <PlaylistForm v-if="panel === 'edit' && list" :list="list" @close="panel = ''" />
+  <Modal
+    v-if="panel === 'add' && list"
+    title="添加歌曲"
+    @close="closePicker"
+  >
+    <input
+      v-model="pickerQuery"
+      type="search"
+      placeholder="搜索曲目"
+      aria-label="搜索要添加的歌曲"
+    />
+    <button
+      v-for="song in available"
+      :key="song.id"
+      class="menu-item row"
+      :disabled="list.songIds.includes(song.id)"
+      @click="music.add(list.id, song.id)"
+    >
+      {{ song.title }}
+      <small>{{ list.songIds.includes(song.id) ? '已添加' : song.artist }}</small>
+    </button>
+  </Modal>
+  <Modal v-if="panel === 'delete' && list" title="删除歌单？" @close="panel = ''">
+    <div class="actions">
+      <button class="pill" @click="panel = ''">取消</button>
+      <button class="solid" @click="destroy">确认删除</button>
+    </div>
+  </Modal>
 </template>

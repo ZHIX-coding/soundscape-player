@@ -103,13 +103,13 @@ function cycle() {
         <RouterLink
           v-if="nowPlaying"
           class="icon"
-          :to="{ path: '/queue', query: { from: 'player' } }"
+          :to="{ path: '/queue', query: { from: 'player', origin: route.query.from } }"
           aria-label="队列"
           title="队列"
         >
           <ListMusic />
         </RouterLink>
-        <button v-else class="icon" aria-label="队列列表" title="队列列表" @click="panel = '列表'">
+        <button v-else class="icon" aria-label="队列列表" title="队列" @click="panel = '列表'">
           <ListMusic />
         </button>
       </div>

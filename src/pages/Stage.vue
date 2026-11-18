@@ -1,26 +1,29 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, SlidersHorizontal, Maximize2, Minimize2, Music2 } from 'lucide-vue-next'
+import {
+  ChevronLeft,
+  SlidersHorizontal,
+  Maximize2,
+  Minimize2,
+  Music2,
+  Captions,
+} from 'lucide-vue-next'
 import PlaybackBackdrop from '../components/PlaybackBackdrop.vue'
 import LyricsPanel from '../components/LyricsPanel.vue'
 import StageSettings from '../components/StageSettings.vue'
 import { vHorizontalSwipe } from '../horizontalSwipe'
 import { useAppearance } from '../stores/appearance'
+import { browseOrigin } from '../browseOrigin'
 import { usePlayer } from '../stores/music'
 
 const p = usePlayer()
 const route = useRoute()
 const router = useRouter()
-const backTo = computed(() => {
-  const from = route.query.from
-  return typeof from === 'string' &&
-    /^\/(library|local|my|artists|queue|playlist\/[^/?#]+)$/.test(from)
-    ? from
-    : '/library'
-})
+const backTo = computed(() => browseOrigin(route.query.from))
 const appearance = useAppearance()
 const settingsOpen = ref(false)
+const lyricPanel = ref(null)
 const immersive = ref(false)
 const quiet = ref(false)
 const canSwipe = () => p.queue.length > 1
@@ -31,7 +34,13 @@ const wakeEvents = ['pointermove', 'pointerdown', 'keydown', 'focusin', 'focusou
 function wakeControls() {
   clearTimeout(hideTimer)
   quiet.value = false
-  if (!immersive.value || !p.playing || settingsOpen.value) return
+  if (
+    !immersive.value ||
+    !p.playing ||
+    settingsOpen.value ||
+    !matchMedia('(hover: hover) and (pointer: fine)').matches
+  )
+    return
   hideTimer = setTimeout(() => {
     quiet.value = !document.querySelector(
       'dialog[open], .now-header :focus-visible, .now-dock :focus-visible',
@@ -86,17 +95,28 @@ onUnmounted(() => {
     aria-label="正在播放"
     :class="{
       'controls-quiet': quiet && immersive,
+      ['layout-' + appearance.lyrics]: true,
       'photo-background': appearance.background === 'cover',
       'reduce-motion': appearance.reduceMotion,
       'has-lyrics': p.song.lyrics.length || p.song.plainLyrics,
     }"
   >
     <PlaybackBackdrop :cover="p.song.cover" />
+    <img v-if="appearance.lyrics === 'poster'" class="now-poster" :src="p.song.cover" alt="" />
     <header class="now-header">
       <RouterLink class="now-tool" :to="backTo" aria-label="返回" title="返回">
         <ChevronLeft />
       </RouterLink>
       <div class="now-tools">
+        <button
+          v-if="p.song.lyrics.length"
+          class="now-tool"
+          title="歌词"
+          @click="lyricPanel?.toggleBrowse()"
+        >
+          <Captions />
+          <span>歌词</span>
+        </button>
         <button class="now-tool" title="显示" @click="settingsOpen = true">
           <SlidersHorizontal />
           <span>显示</span>
@@ -120,7 +140,7 @@ onUnmounted(() => {
           <p>{{ p.song.artist }}</p>
         </div>
       </div>
-      <LyricsPanel v-if="p.song.lyrics.length" :key="p.id" />
+      <LyricsPanel v-if="p.song.lyrics.length" :key="p.id" ref="lyricPanel" />
       <div
         v-else-if="p.song.plainLyrics"
         class="plain-lyrics"
@@ -136,7 +156,7 @@ onUnmounted(() => {
   <section v-else class="library-empty">
     <Music2 aria-hidden="true" />
     <h1>暂无播放</h1>
-    <RouterLink class="solid" to="/library">发现音乐</RouterLink>
+    <RouterLink class="solid" to="/library">发现</RouterLink>
   </section>
   <StageSettings v-if="settingsOpen" @close="settingsOpen = false" />
 </template>

@@ -4,6 +4,7 @@ import { ChevronLeft, LocateFixed, ListMusic, Play, Pause } from 'lucide-vue-nex
 import { useRoute } from 'vue-router'
 import { songs } from '../data/songs'
 import { vHorizontalSwipe } from '../horizontalSwipe'
+import { browseOrigin } from '../browseOrigin'
 import { usePlayer } from '../stores/music'
 
 const player = usePlayer()
@@ -33,8 +34,12 @@ function locate() {
     <header class="wall-header">
       <RouterLink
         class="wall-round"
-        :to="route.query.from === 'player' ? '/player' : '/library'"
-        :aria-label="route.query.from === 'player' ? '正在播放' : '返回发现'"
+        :to="
+          route.query.from === 'player'
+            ? { path: '/player', query: { from: route.query.origin } }
+            : browseOrigin(route.query.from)
+        "
+        aria-label="返回"
         :title="route.query.from === 'player' ? '正在播放' : '返回发现'"
       >
         <ChevronLeft />
@@ -52,7 +57,7 @@ function locate() {
         <article v-if="song.id === player.id" class="wall-tile wall-current">
           <img :src="song.cover" alt="" />
           <div class="wall-current-title">
-            <small>{{ player.playing ? '正在播放' : '当前曲目' }} · {{ index + 1 }}</small>
+            <small>{{ player.playing ? '正在播放' : '当前曲目' }}</small>
             <h2>{{ song.title }}</h2>
             <p>{{ song.artist }}</p>
           </div>
@@ -93,7 +98,7 @@ function locate() {
     <div v-else class="library-empty">
       <ListMusic aria-hidden="true" />
       <h2>播放队列为空</h2>
-      <RouterLink class="pill" to="/local">打开本地曲库</RouterLink>
+      <RouterLink class="pill" to="/local">本地</RouterLink>
     </div>
     <button
       v-if="current"

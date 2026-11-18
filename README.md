@@ -1,6 +1,6 @@
 # 声境 · Soundscape
 
-面向在学习或休息时听音乐的学生。学生可以从封面或曲目列表挑选作品，把适合一起听的曲目整理成歌单，再进入正在播放页查看同步歌词。默认展示空间封面，曲库工具栏可以切换到紧凑列表，浏览器记住上次选择。
+面向学习或休息时听音乐的学生。从封面墙浏览歌曲、歌单和歌手，把曲目整理成歌单，再进入「正在播放」查看同步歌词。
 
 ## 本地运行
 
@@ -23,18 +23,18 @@ npm run preview
 
 构建目录为 `dist/`，由 HTTP 静态服务提供。哈希路由支持从分享的歌单地址刷新进入。歌单内容保存在创建它的浏览器与站点地址下，开发服务和预览服务有各自的存储。
 
-浏览器回归使用独立的测试曲库。先执行 `npm run build -- --mode browser-test --outDir node_modules/.cache/browser-test`，再用 `npm run preview -- --outDir node_modules/.cache/browser-test` 启动测试预览。保留该预览服务，另开终端执行 `npm run test:browser`。测试需要已安装桌面 Chrome，默认地址为 http://127.0.0.1:4173。可用环境变量 `PREVIEW_URL` 指向其他端口，`BROWSER_CHANNEL=msedge` 可选择已安装的 Edge。测试会刷新 `screenshots/` 中的演示图。
+浏览器回归使用独立的测试曲库。先执行 `npm run build -- --mode browser-test --outDir node_modules/.cache/browser-test`，再用 `npm run preview -- --outDir node_modules/.cache/browser-test` 启动测试预览。保留该预览服务，另开终端执行 `npm run test:browser`。测试需要已安装桌面 Chrome，默认地址为 http://127.0.0.1:4173。可用环境变量 `PREVIEW_URL` 指向其他端口，`BROWSER_CHANNEL=msedge` 可选择已安装的 Edge。测试截图默认保存在 `output/playwright/regression/`。
 
 ## 页面、数据与交互
 
-封面视图提供横向、环形和网格三种布局，三者共用搜索结果与选中曲目，背景随当前封面变化。可用左右键或滑动切换封面，点「列表」跳到下方全部曲目。切换布局会记住偏好并保留播放进度。歌单卡与详情使用最多四张不同的实际封面拼合，来自同一专辑的歌曲共用一张图。
+「发现」「歌单」「歌手」「本地」使用连续横向封面墙。可拖动、滚动、触屏横滑，或用方向键浏览。Enter 播放曲目或打开集合。搜索在当前页过滤，返回上一层时恢复封面墙的位置。
 
 | 页面 | 现场可操作的功能 |
 | --- | --- |
-| 发现 `/#/library` | 点击侧方封面切换选曲，点击中央封面播放。用左右键、拖动或滑动翻阅封面。按斜杠聚焦搜索，组合搜索和风格筛选，按时长或曲名排序。曲目行可以收藏、加入队列或歌单。 |
+| 发现 `/#/library` | 按斜杠聚焦搜索。点击封面播放，使用卡片上的操作收藏、加入队列或添加到歌单。 |
 | 歌单 `/#/my` | 查看收藏、创建歌单。名称去除首尾空格，校验必填、24 字符上限和同名，错误显示在字段旁。 |
 | 歌单详情 `/#/playlist/:id` | 搜索歌单内歌曲，增删曲目，编辑名称、简介或确认删除歌单。播放全部将歌单顺序复制到队列。 |
-| 正在播放 `/#/player` | 查看封面和同步歌词，点击歌词跳到对应时间。「显示」里可切换焦点与列表、取色与封面背景。 |
+| 正在播放 `/#/player` | 查看封面和同步歌词，点击歌词跳到对应时间。「显示」里可切换双栏、单句、海报、景深和静态，也可以选择背景与减少动效。五种构图共享播放进度。 |
 
 曲库的「导入歌曲」支持一次选择一份音频，选填歌手、LRC 和专辑图。支持普通逐行 LRC 和带 `<mm:ss.xx>` 词级时间标签的增强 LRC。导入完成即可播放并加入歌单；浏览器用 IndexedDB 保存音频、图片和歌词。滚动或滑动歌词可停留浏览并查看每句起点，点「回到当前句」恢复跟随，直接点歌词可跳到该句。正在播放页右上角可以进入全屏，支持全屏的浏览器也可以按 Esc 退出。队列支持上下调整顺序，并保存到下次打开。
 
@@ -71,11 +71,11 @@ npm run preview
 
 必填字段为稳定且唯一的 `id`、`title` 和可播放的 `audio` 地址。时长单位为秒。省略封面时使用项目备用封面；省略歌词时仍可播放，器乐可传 `"vocal": false`。字段 `lrc` 接受普通或增强 LRC 正文。示例只列了两句，逐字同步需提供字词起点。媒体的相对地址以接口最终 URL 为基准。跨域接口与需要提取点阵的跨域封面应允许播放器站点读取。曲库服务暂时失败时会尝试显示此前缓存的曲目资料，音频仍从原地址播放。收藏、队列和个人歌单目前保存在浏览器。
 
-采用 Vue 3、Vite、JavaScript、Vue Router、Pinia、CSS 媒体查询、Git、ESLint、Prettier。组件图标来自 Lucide。中文民歌《茉莉花》使用 Lindy Lin 的现场清唱录音。三首英文人声录音来自 Josh Woodward 的《The Wake》，另有六首项目生成的器乐。录音授权、歌词来源和素材重建步骤见 [素材说明](docs/素材.md)。
+采用 Vue 3、Vite、JavaScript、Vue Router、Pinia、CSS 媒体查询、Git、ESLint、Prettier。组件图标来自 Lucide。浏览器回归使用独立测试素材，其中中文民歌《茉莉花》使用 Lindy Lin 的现场清唱录音。三首英文人声录音来自 Josh Woodward 的《The Wake》，另有六首项目生成的器乐。录音授权、歌词来源和素材重建步骤见 [素材说明](docs/素材.md)。
 
-- `src/main.js` 注册四个页面，动态路径携带歌单 ID。
+- `src/main.js` 注册主要视图，动态路径携带歌单 ID 或歌手名。
 - `src/stores/music.js` 包含播放器和个人曲库两个 store。播放器独占一个 HTMLAudioElement。切页只改变视图。收藏和歌单引用曲目 ID，去重后存入带版本号的 localStorage。
-- `src/pages/Library.vue` 在 computed 中对曲库做筛选和排序，`src/components/SongTable.vue` 将结果渲染为统一的可操作列表。详情和收藏复用同一组件。
+- `src/components/CoverWall.vue` 负责横向浏览和位置恢复，`TrackWall.vue` 复用曲目卡片和操作。
 - `src/components/LyricsPanel.vue` 依据实际音频进度找到最后一条已开始的歌词，定位并高亮。有词时间戳时，在下一词起点重新读取音频时钟，切换高亮。暂停和拖动会重新定位，只有行级数据的曲目沿用整行高亮。系统开启减少动态效果时，切换和滚动相应简化。
 - `src/components/PlaylistForm.vue` 收集输入，由 store 统一校验与保存。曲库、收藏和歌单视图共享即时更新。
 - `src/data/songs.js` 管理曲库。音频可来自项目内置目录、本地导入或配置的后台接口。旧演示素材保存在 `scripts/fixtures/media/` 供回归测试。

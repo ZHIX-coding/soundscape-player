@@ -7,7 +7,7 @@ const covers = computed(() =>
 </script>
 <template>
   <span class="playlist-art" :class="'tiles-' + covers.length" aria-hidden="true">
-    <img v-for="cover in covers" :key="cover" :src="cover" alt="" />
+    <img v-for="cover in covers" :key="cover" :src="cover" alt="" loading="lazy" decoding="async" />
     <span v-if="!covers.length" class="blank-record"></span>
   </span>
 </template>

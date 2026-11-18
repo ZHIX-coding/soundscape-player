@@ -6,6 +6,13 @@ import { usePlayer } from '../stores/music'
 import { time } from '../persistence'
 const p = usePlayer(),
   lines = ref(null)
+const lyrics = computed(() => {
+  const all = p.song?.lyrics ?? []
+  const first = all.findIndex(
+    (line) => !/^(作词|作曲|编曲|制作人|词|曲|Lyrics by|Composed by)\s*[:：]/i.test(line.text),
+  )
+  return first > 0 ? all.slice(first) : all
+})
 const active = ref(-1)
 const wordIndex = ref(-1)
 const speaking = ref(false)
@@ -14,7 +21,7 @@ let paintFrame
 let scrollFrame
 function paintWord() {
   cancelAnimationFrame(paintFrame)
-  const line = p.song.lyrics[active.value]
+  const line = lyrics.value[active.value]
   const word = line?.words?.[wordIndex.value]
   const element = lines.value?.querySelector('.word-current')
   if (!element || !word) return
@@ -33,9 +40,9 @@ function paintWord() {
 function syncLyrics() {
   clearTimeout(cueTimer)
   const t = p.mediaTime()
-  const lyrics = p.song.lyrics
-  active.value = lyrics.findLastIndex((line) => line.start <= t)
-  const line = lyrics[active.value]
+  const timedLines = lyrics.value
+  active.value = timedLines.findLastIndex((line) => line.start <= t)
+  const line = timedLines[active.value]
   const words = line?.words ?? []
   wordIndex.value = words.findLastIndex((word) => word.start <= t)
   speaking.value = wordIndex.value >= 0 && t < (line.end ?? Infinity)
@@ -45,7 +52,7 @@ function syncLyrics() {
   const next =
     words[wordIndex.value + 1]?.start ??
     (speaking.value ? line.end : undefined) ??
-    lyrics[active.value + 1]?.start
+    timedLines[active.value + 1]?.start
   if (p.playing && next !== undefined) {
     cueTimer = setTimeout(syncLyrics, Math.max(16, Math.ceil((next - t) * 1000)))
   }
@@ -58,7 +65,16 @@ onUnmounted(() => {
 })
 const appearance = useAppearance()
 const browsing = ref(false)
-const showList = computed(() => browsing.value || appearance.lyrics === 'list')
+const showList = computed(() => browsing.value || appearance.lyrics === 'static')
+const single = computed(() => appearance.lyrics === 'single' && !browsing.value)
+const previousLine = ref(-1)
+let previousTimer
+watch(active, (index, old) => {
+  clearTimeout(previousTimer)
+  previousLine.value = single.value && p.playing && index === old + 1 ? old : -1
+  if (previousLine.value >= 0) previousTimer = setTimeout(() => (previousLine.value = -1), 420)
+})
+onUnmounted(() => clearTimeout(previousTimer))
 const motionAllowed = () =>
   !appearance.reduceMotion && !matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -71,7 +87,9 @@ function browse() {
   if (browsing.value) return
   cancelAnimationFrame(scrollFrame)
   browsing.value = true
+  nextTick(() => alignLine(false, true))
 }
+defineExpose({ toggleBrowse: () => (browsing.value ? resume() : browse()) })
 function resume() {
   browsing.value = false
   nextTick(() => alignLine(true))
@@ -95,8 +113,16 @@ function alignLine(smooth = false, afterSeek = false) {
   cancelAnimationFrame(scrollFrame)
   const box = lines.value
   if (!box || (browsing.value && !afterSeek)) return
+  if (single.value) {
+    box.scrollTop = 0
+    return
+  }
   const line = box.querySelector('.now') ?? box.firstElementChild
   if (!line) return
+  if (appearance.lyrics === 'static' && !smooth && !afterSeek && !browsing.value) {
+    const top = line.offsetTop - box.scrollTop
+    if (top >= 36 && top + line.offsetHeight <= box.clientHeight - 36) return
+  }
   const target = line.offsetTop - (box.clientHeight - line.offsetHeight) / 2
   const start = box.scrollTop
   if (!smooth || !motionAllowed() || Math.abs(target - start) < 2) {
@@ -117,8 +143,12 @@ watch(
     await nextTick()
     const natural =
       previous?.[1] === seekVersion && previous?.[2] === layout && previous?.[3] === reduced
-    const afterSeek = previous?.[1] !== undefined && previous[1] !== seekVersion
-    alignLine(!!natural && p.playing && index === previous[0] + 1, afterSeek)
+    const afterSeek =
+      previous?.[1] === undefined || previous[1] !== seekVersion || previous[2] !== layout
+    alignLine(
+      appearance.lyrics !== 'static' && !!natural && p.playing && index === previous[0] + 1,
+      afterSeek,
+    )
   },
   { immediate: true },
 )
@@ -134,7 +164,10 @@ watch(lines, (box, previous) => {
 onUnmounted(() => resize?.disconnect())
 </script>
 <template>
-  <div class="lyrics-panel" :class="{ 'is-browsing': browsing, 'lyric-list': showList }">
+  <div
+    class="lyrics-panel"
+    :class="{ 'is-browsing': browsing, 'lyric-list': showList, 'single-line': single }"
+  >
     <div
       ref="lines"
       class="lyrics"
@@ -151,12 +184,21 @@ onUnmounted(() => resize?.disconnect())
       @keydown="keyboardBrowse"
     >
       <button
-        v-for="(l, i) in p.song.lyrics"
+        v-for="(l, i) in lyrics"
         :key="p.id + i"
-        :class="{ now: i === active }"
+        :class="{
+          now: i === active,
+          'line-leaving': single && i === previousLine,
+          'line-intro': single && active < 0 && i === 0,
+        }"
+        :data-offset="Math.max(-3, Math.min(3, i - Math.max(0, active)))"
         :data-distance="Math.min(3, Math.abs(i - Math.max(0, active)))"
         :data-length="lineLength(l.text)"
-        :tabindex="showList || Math.abs(i - Math.max(0, active)) < 3 ? undefined : -1"
+        :tabindex="
+          (single ? i === Math.max(0, active) : showList || Math.abs(i - Math.max(0, active)) < 3)
+            ? undefined
+            : -1
+        "
         :aria-current="i === active ? 'true' : undefined"
         :aria-label="l.text"
         @click="jump(l.start)"
