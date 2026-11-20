@@ -11,7 +11,12 @@ import { useLyricClock } from '../useLyricClock'
 const p = usePlayer()
 const appearance = useAppearance()
 const lines = ref(null)
-const { lyrics, active, wordIndex, resting, paintWord, motionAllowed } = useLyricClock(lines)
+const props = defineProps({ upcomingLine: { type: Number, default: null } })
+const clock = useLyricClock(lines)
+const { lyrics, paintWord, motionAllowed } = clock
+const active = computed(() => props.upcomingLine ?? clock.active.value)
+const wordIndex = computed(() => (props.upcomingLine === null ? clock.wordIndex.value : -1))
+const resting = computed(() => clock.resting.value && appearance.lyrics !== 'cinema')
 const lengths = computed(() =>
   lyrics.value.map((line) => {
     const width = [...line.text].reduce(
@@ -84,7 +89,7 @@ function resume() {
   browsing.value = false
   nextTick(() => alignLine(true, true))
 }
-defineExpose({ toggleBrowse: () => (browsing.value ? resume() : browse()) })
+defineExpose({ browsing, toggleBrowse: () => (browsing.value ? resume() : browse()) })
 function jump(start) {
   p.seek(start)
   resume()
