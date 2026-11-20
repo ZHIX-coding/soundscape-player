@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { X } from 'lucide-vue-next'
-defineProps({ title: { type: String, required: true } })
+defineProps({ title: { type: String, required: true }, panelClass: { type: String, default: '' } })
 const emit = defineEmits(['close'])
 const box = ref(null)
 let previous
@@ -21,6 +21,7 @@ onBeforeUnmount(() => {
     <dialog
       ref="box"
       class="modal"
+      :class="panelClass"
       :aria-label="title"
       @cancel.prevent="emit('close')"
       @click="

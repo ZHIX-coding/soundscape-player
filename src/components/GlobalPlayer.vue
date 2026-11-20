@@ -15,6 +15,7 @@ import {
   X,
   ChevronDown,
 } from 'lucide-vue-next'
+import { playerFromQueue, queueFromPlayer, queueLocation } from '../browseOrigin'
 import { usePlayer, useMusic } from '../stores/music'
 import { songs } from '../data/songs'
 import { time } from '../persistence'
@@ -69,7 +70,9 @@ function cycle() {
         v-horizontal-swipe="{ step: changeTrack, enabled: canSwipe }"
         class="track dock-track"
         :class="{ swipeable: canSwipe() }"
-        :to="{ path: '/player', query: { from: route.path } }"
+        :to="
+          compact ? playerFromQueue(route.query) : { path: '/player', query: { from: route.path } }
+        "
         aria-label="正在播放"
         :aria-description="canSwipe() ? '左右滑动、拖动或按方向键切换歌曲' : undefined"
         title="正在播放"
@@ -103,7 +106,7 @@ function cycle() {
         <RouterLink
           v-if="nowPlaying"
           class="icon"
-          :to="{ path: '/queue', query: { from: 'player', origin: route.query.from } }"
+          :to="queueFromPlayer(route.query)"
           aria-label="队列"
           title="队列"
         >
@@ -138,7 +141,9 @@ function cycle() {
     </label>
     <template v-if="panel === '列表'">
       <button v-if="compact" class="pill" @click="panel = ''">拼贴</button>
-      <RouterLink v-else class="pill" to="/queue" @click="panel = ''">拼贴</RouterLink>
+      <RouterLink v-else class="pill" :to="queueLocation(route.path)" @click="panel = ''">
+        拼贴
+      </RouterLink>
       <button class="pill" @click="cycle">{{ p.mode }}</button>
       <label class="mobile-seek">
         进度 {{ time(p.position) }}

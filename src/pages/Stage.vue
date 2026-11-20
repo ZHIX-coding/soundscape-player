@@ -14,13 +14,15 @@ import LyricsPanel from '../components/LyricsPanel.vue'
 import StageSettings from '../components/StageSettings.vue'
 import { vHorizontalSwipe } from '../horizontalSwipe'
 import { useAppearance } from '../stores/appearance'
-import { browseOrigin } from '../browseOrigin'
+import { browseOrigin, queueFromPlayer } from '../browseOrigin'
 import { usePlayer } from '../stores/music'
 
 const p = usePlayer()
 const route = useRoute()
 const router = useRouter()
-const backTo = computed(() => browseOrigin(route.query.from))
+const backTo = computed(() =>
+  route.query.from === '/queue' ? queueFromPlayer(route.query) : browseOrigin(route.query.from),
+)
 const appearance = useAppearance()
 const settingsOpen = ref(false)
 const lyricPanel = ref(null)
@@ -96,13 +98,17 @@ onUnmounted(() => {
     :class="{
       'controls-quiet': quiet && immersive,
       ['layout-' + appearance.lyrics]: true,
+      'artwork-background': appearance.background !== 'color',
       'photo-background': appearance.background === 'cover',
       'reduce-motion': appearance.reduceMotion,
       'has-lyrics': p.song.lyrics.length || p.song.plainLyrics,
     }"
   >
-    <PlaybackBackdrop :cover="p.song.cover" />
-    <img v-if="appearance.lyrics === 'poster'" class="now-poster" :src="p.song.cover" alt="" />
+    <PlaybackBackdrop
+      :cover="p.song.cover"
+      :mode="appearance.background"
+      :reduce-motion="appearance.reduceMotion"
+    />
     <header class="now-header">
       <RouterLink class="now-tool" :to="backTo" aria-label="返回" title="返回">
         <ChevronLeft />

@@ -1,3 +1,6 @@
+export const isLyricCredit = (line) =>
+  /^(作词|作曲|编曲|制作人|词|曲|Lyrics by|Composed by)\s*[:：]/i.test(line.text)
+
 function seconds(minutes, seconds, fraction = '') {
   return Number(minutes) * 60 + Number(seconds) + Number('0.' + fraction)
 }

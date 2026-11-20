@@ -48,12 +48,42 @@ try {
   await link('正在播放').click()
   await click('暂停')
   const seek = page.getByRole('slider', { name: '播放进度', exact: true })
+  const lyricGeometry = () =>
+    page
+      .locator('.lyrics button')
+      .evaluateAll((lines) =>
+        lines.map((line) => [line.offsetTop, line.offsetHeight, getComputedStyle(line).fontSize]),
+      )
+  const geometry = await lyricGeometry()
   await seek.fill('16.2')
   const syllable = page.locator('.lyrics .word-current')
   assert.equal(await syllable.innerText(), '满')
   await page.waitForFunction(
     () => parseFloat(document.querySelector('.word-current')?.style.getPropertyValue('--ink')) > 35,
   )
+  assert.deepEqual(await lyricGeometry(), geometry)
+  await click('显示')
+  await click('环绕')
+  await click('折射')
+  await click('关闭')
+  const artwork = await page.locator('.background-refraction canvas').elementHandle()
+  await page.locator('.orbit-line.now .word-current').filter({ hasText: '满' }).waitFor()
+  assert(Math.abs(Number(await seek.inputValue()) - 16.2) < 0.15)
+  await click('歌词')
+  await page.locator('.is-browsing .lyrics').waitFor()
+  await click('回到当前句')
+  await page.locator('.orbit-lyrics').waitFor()
+  await click('显示')
+  await click('双栏')
+  await click('关闭')
+  assert(
+    await page
+      .locator('.background-refraction canvas')
+      .evaluate((node, original) => node === original, artwork),
+  )
+  await click('显示')
+  await click('取色')
+  await click('关闭')
   await click('全屏')
   await saveShot('茉莉花-全屏')
   const lyricBox = page.getByRole('region', { name: '同步歌词' })
@@ -71,9 +101,11 @@ try {
   await click('回到当前句')
   assert(Math.abs(Number(await seek.inputValue()) - beforeResume) < 0.5)
   await page.waitForFunction(() => {
-    const region = document.querySelector('.lyrics').getBoundingClientRect()
+    const element = document.querySelector('.lyrics')
+    const region = element.getBoundingClientRect()
+    const anchor = Number(getComputedStyle(element).getPropertyValue('--lyric-anchor')) / 100
     const current = document.querySelector('.lyrics .now').getBoundingClientRect()
-    return Math.abs(current.top + current.height / 2 - region.top - region.height / 2) < 2
+    return Math.abs(current.top + current.height / 2 - region.top - region.height * anchor) < 2
   })
   await seek.fill('16.2')
   await click('退出全屏')
@@ -84,7 +116,7 @@ try {
   await click('退出全屏')
   await page.setViewportSize({ width: 1440, height: 900 })
   await seek.fill('34.5')
-  await syllable.waitFor({ state: 'detached' })
+  await page.locator('.lyrics .now').filter({ hasText: '送给别人家' }).waitFor()
   await click('播放')
   await syllable.filter({ hasText: '茉' }).waitFor()
   await click('暂停')
@@ -266,6 +298,23 @@ try {
   await noOverflow()
   await click('退出全屏')
   await page.locator('.now-dock').getByRole('link', { name: '队列', exact: true }).click()
+  const queueUrl = page.url()
+  const cover = page.locator('.wall-current')
+  await link('打开播放详情').click()
+  assert.equal(await page.locator('.now-meta h1').innerText(), '中文试听')
+  await button('播放').waitFor()
+  assert(Math.abs(Number(await seek.inputValue()) - 4.6) < 0.15)
+  await link('返回').click()
+  assert.equal(page.url(), queueUrl)
+  assert.equal(await cover.locator('h2').innerText(), '中文试听')
+  await page.waitForFunction(() => {
+    const rail = document.querySelector('.wall-viewport')
+    const card = document.querySelector('.wall-current').getBoundingClientRect()
+    const center =
+      rail.getBoundingClientRect().top +
+      (rail.clientHeight - parseFloat(getComputedStyle(rail).paddingBottom)) / 2
+    return Math.abs(card.top + card.height / 2 - center) < 2
+  })
   await click('列表')
   await click('上移 中文试听')
   const order = await page.locator('.queue-row .track b').allTextContents()

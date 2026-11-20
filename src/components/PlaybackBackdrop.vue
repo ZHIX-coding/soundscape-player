@@ -1,5 +1,10 @@
 <script setup>
-defineProps({ cover: { type: String, required: true } })
+import PosterArtwork from './PosterArtwork.vue'
+defineProps({
+  cover: { type: String, required: true },
+  mode: { type: String, required: true },
+  reduceMotion: Boolean,
+})
 
 function sampleCover({ target: image }) {
   try {
@@ -9,7 +14,9 @@ function sampleCover({ target: image }) {
     ctx.drawImage(image, 0, 0, 24, 24)
     const pixels = ctx.getImageData(0, 0, 24, 24).data
     const total = [0, 0, 0]
+    const secondary = [0, 0, 0]
     let weights = 0
+    let rightWeights = 0
     for (let i = 0; i < pixels.length; i += 4) {
       const r = pixels[i],
         g = pixels[i + 1],
@@ -22,10 +29,22 @@ function sampleCover({ target: image }) {
       total[1] += g * weight
       total[2] += b * weight
       weights += weight
+      if ((i / 4) % 24 >= 12) {
+        secondary[0] += r * weight
+        secondary[1] += g * weight
+        secondary[2] += b * weight
+        rightWeights += weight
+      }
     }
     if (weights) {
       const color = total.map((channel) => Math.round(channel / weights)).join(' ')
-      image.parentElement.style.setProperty('--cover-color', 'rgb(' + color + ')')
+      const layer = image.closest('.now-wash')
+      layer.style.setProperty('--cover-color', 'rgb(' + color + ')')
+      if (rightWeights) {
+        const shade = secondary.map((channel) => Math.round(channel / rightWeights)).join(' ')
+        layer.style.setProperty('--cover-shadow', 'rgb(' + shade + ')')
+        layer.style.setProperty('--poster-accent', 'rgb(' + color + ')')
+      }
     }
   } catch {
     // Images served without cross-origin pixel access can still be displayed.
@@ -36,8 +55,14 @@ function sampleCover({ target: image }) {
 <template>
   <div class="now-backdrop" aria-hidden="true">
     <Transition name="album-wash">
-      <div :key="cover" class="now-wash">
-        <img :src="cover" alt="" @load="sampleCover" />
+      <div :key="mode + ':' + cover" class="now-wash" :class="'background-' + mode">
+        <PosterArtwork
+          v-if="mode === 'refraction'"
+          :cover="cover"
+          :reduce-motion="reduceMotion"
+          @cover-load="sampleCover"
+        />
+        <img v-else :src="cover" alt="" @load="sampleCover" />
       </div>
     </Transition>
   </div>
