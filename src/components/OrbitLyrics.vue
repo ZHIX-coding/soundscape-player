@@ -5,6 +5,8 @@ import LyricWords from './LyricWords.vue'
 const props = defineProps({
   lyrics: { type: Array, required: true },
   active: { type: Number, required: true },
+  singing: { type: Number, required: true },
+  preview: { type: Number, default: null },
   wordIndex: { type: Number, required: true },
   seekVersion: { type: Number, required: true },
   playing: Boolean,
@@ -29,7 +31,6 @@ const trajectory = computed(() => {
 const dimensions = ref({ width: 0, height: 0 })
 let resize
 let canvas
-const pointer = ref(null)
 const fontSizes = new Map()
 
 function fontSize(line) {
@@ -71,13 +72,6 @@ watch(
     moving.value = index === old + 1 && old >= 0 && seek === oldSeek && props.playing && !reduced
   },
 )
-function touchMove(event) {
-  if (event.touches.length !== 1 || pointer.value === null) return
-  const touch = event.touches[0]
-  const dy = Math.abs(touch.clientY - pointer.value.y)
-  if (dy > 12 && dy > Math.abs(touch.clientX - pointer.value.x)) emit('browse')
-}
-
 function keyboard(event) {
   if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) {
     event.preventDefault()
@@ -105,25 +99,27 @@ onBeforeUnmount(() => resize?.disconnect())
     role="region"
     tabindex="0"
     aria-label="同步歌词"
-    @wheel.passive="Math.abs($event.deltaY) > Math.abs($event.deltaX) && emit('browse')"
-    @touchstart.passive="pointer = { x: $event.touches[0].clientX, y: $event.touches[0].clientY }"
-    @touchmove.passive="touchMove"
     @keydown="keyboard"
   >
     <button
       v-for="{ line, index, slot } in onscreen"
       :key="index"
       class="orbit-line"
-      :class="{ now: slot === 0, 'phrase-arrival': slot === 0 && moving && !line.words }"
+      :class="{
+        now: index === singing,
+        'lyric-preview': slot === 0 && index === preview,
+        'lyric-context': slot === 0 && index !== singing && index !== preview,
+        'phrase-arrival': index === singing && moving && !line.words,
+      }"
       :data-slot="slot"
       :style="{ '--orbit-font': fontSize(line) }"
       :tabindex="resting || Math.abs(slot) > 1 ? -1 : undefined"
       :aria-hidden="resting || Math.abs(slot) > 1 || undefined"
-      :aria-current="slot === 0 ? 'true' : undefined"
+      :aria-current="index === singing ? 'true' : undefined"
       :aria-label="line.text"
       @click="emit('jump', line.start)"
     >
-      <LyricWords :line="line" :word-index="wordIndex" :timed="slot === 0" />
+      <LyricWords :line="line" :word-index="wordIndex" :timed="index === singing" />
     </button>
   </div>
 </template>

@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { X } from 'lucide-vue-next'
 defineProps({ title: { type: String, required: true }, panelClass: { type: String, default: '' } })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'opened'])
 const box = ref(null)
 let previous
 onMounted(async () => {
@@ -10,10 +10,11 @@ onMounted(async () => {
   await nextTick()
   box.value.showModal()
   box.value.querySelector('[autofocus]')?.focus()
+  emit('opened')
 })
 onBeforeUnmount(() => {
   box.value?.close()
-  previous?.focus()
+  previous?.focus({ preventScroll: true })
 })
 </script>
 <template>
@@ -33,7 +34,10 @@ onBeforeUnmount(() => {
       <section>
         <header class="row">
           <h2>{{ title }}</h2>
-          <button class="icon" aria-label="关闭" @click="emit('close')"><X /></button>
+          <div class="modal-header-actions">
+            <slot name="header-actions" />
+            <button class="icon" aria-label="关闭" @click="emit('close')"><X /></button>
+          </div>
         </header>
         <slot />
       </section>

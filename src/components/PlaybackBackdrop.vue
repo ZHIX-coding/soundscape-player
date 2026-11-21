@@ -1,5 +1,6 @@
 <script setup>
 import PosterArtwork from './PosterArtwork.vue'
+import AlbumBackdrop from './AlbumBackdrop.vue'
 defineProps({
   cover: { type: String, required: true },
   mode: { type: String, required: true },
@@ -54,7 +55,8 @@ function sampleCover({ target: image }) {
 
 <template>
   <div class="now-backdrop" aria-hidden="true">
-    <Transition name="album-wash">
+    <AlbumBackdrop v-if="mode === 'album'" :cover="cover" @cover-load="sampleCover" />
+    <Transition v-else name="album-wash">
       <div :key="mode + ':' + cover" class="now-wash" :class="'background-' + mode">
         <PosterArtwork
           v-if="mode === 'refraction'"

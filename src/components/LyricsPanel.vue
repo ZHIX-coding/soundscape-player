@@ -4,6 +4,7 @@ import { LocateFixed } from 'lucide-vue-next'
 import { useAppearance } from '../stores/appearance'
 import { usePlayer } from '../stores/music'
 import { time } from '../persistence'
+import InterludeCue from './InterludeCue.vue'
 import LyricWords from './LyricWords.vue'
 import OrbitLyrics from './OrbitLyrics.vue'
 import { useLyricClock } from '../useLyricClock'
@@ -11,7 +12,9 @@ import { useLyricClock } from '../useLyricClock'
 const p = usePlayer()
 const appearance = useAppearance()
 const lines = ref(null)
-const { lyrics, active, wordIndex, resting, paintWord, motionAllowed } = useLyricClock(lines)
+const { lyrics, active, wordIndex, gap, upcoming, contextOnly, paintWord, motionAllowed } =
+  useLyricClock(lines)
+const cinema = computed(() => appearance.lyrics === 'cinema')
 const lengths = computed(() =>
   lyrics.value.map((line) => {
     const width = [...line.text].reduce(
@@ -24,6 +27,14 @@ const lengths = computed(() =>
 const browsing = ref(false)
 const staticView = computed(() => appearance.lyrics === 'static' && !browsing.value)
 const showList = computed(() => browsing.value || staticView.value)
+const resting = computed(() => !!gap.value && !cinema.value && !showList.value)
+const preview = computed(() =>
+  showList.value || (active.value < 0 && !cinema.value) ? null : upcoming.value,
+)
+const focusIndex = computed(() => preview.value ?? active.value)
+const singing = computed(() =>
+  gap.value || upcoming.value !== null || contextOnly.value ? -1 : active.value,
+)
 const orbit = computed(() => appearance.lyrics === 'poster' && !browsing.value)
 const single = computed(() => appearance.lyrics === 'single' && !browsing.value)
 const leaving = ref(-1)
@@ -73,35 +84,32 @@ function glide(now) {
   scrollFrame = requestAnimationFrame(glide)
 }
 
-function browse() {
-  if (browsing.value) return
+function openBrowse() {
+  if (browsing.value || !lyrics.value.length) return
   stopScroll()
   clearTransition()
   browsing.value = true
-  nextTick(() => alignLine(false, true))
+  const index = gap.value?.nextIndex ?? upcoming.value ?? Math.max(0, active.value)
+  nextTick(() => alignLine(false, true, index))
 }
 function resume() {
   browsing.value = false
   nextTick(() => alignLine(true, true))
 }
-defineExpose({ toggleBrowse: () => (browsing.value ? resume() : browse()) })
+defineExpose({
+  browsing,
+  openBrowse,
+  toggleBrowse: () => (browsing.value ? resume() : openBrowse()),
+})
 function jump(start) {
   p.seek(start)
   resume()
 }
 function keyboardBrowse(event) {
-  if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes(event.key)) browse()
+  if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes(event.key))
+    openBrowse()
 }
-let touchStart
-function touchBrowse(event) {
-  const touch = event.touches[0]
-  if (!touchStart || event.touches.length !== 1) return
-  const dx = Math.abs(touch.clientX - touchStart.clientX)
-  const dy = Math.abs(touch.clientY - touchStart.clientY)
-  if (dy > 6 && dy > dx) browse()
-}
-
-function alignLine(smooth = false, recenter = false) {
+function alignLine(smooth = false, recenter = false, index) {
   const box = lines.value
   if (!box || orbit.value || (browsing.value && !recenter)) return
   if (single.value) {
@@ -109,7 +117,10 @@ function alignLine(smooth = false, recenter = false) {
     box.scrollTop = 0
     return
   }
-  const line = box.querySelector('.now') ?? box.firstElementChild
+  const line =
+    (index === undefined
+      ? box.querySelector('.lyric-preview, .now, .lyric-context')
+      : box.children[index]) ?? box.firstElementChild
   if (!line) return
 
   const start = box.scrollTop
@@ -138,10 +149,10 @@ function alignLine(smooth = false, recenter = false) {
   scrollFrame = requestAnimationFrame(glide)
 }
 watch(
-  [active, () => p.seekVersion, () => appearance.lyrics, () => appearance.reduceMotion],
+  [focusIndex, () => p.seekVersion, () => appearance.lyrics, () => appearance.reduceMotion],
   ([index, seek, mode, reduced], previous) => {
     const recenter = previous?.[1] !== seek || previous?.[2] !== mode || previous?.[3] !== reduced
-    const natural = !recenter && index === previous[0] + 1 && p.playing
+    const natural = !recenter && preview.value === null && index === previous[0] + 1 && p.playing
     clearTransition()
     phraseArrival.value = natural && motionAllowed() ? index : -1
     if (single.value && natural && motionAllowed()) {
@@ -184,20 +195,23 @@ onUnmounted(() => {
       'is-browsing': browsing,
       'lyric-list': showList,
       'single-line': single,
-      'lyrics-resting': resting && !showList && !orbit,
+      'lyrics-resting': resting && !orbit,
+      'interlude-reading': showList,
     }"
   >
     <OrbitLyrics
       v-if="orbit"
       :lyrics="lyrics"
-      :active="active"
+      :active="focusIndex"
+      :singing="singing"
+      :preview="preview"
       :word-index="wordIndex"
       :seek-version="p.seekVersion"
       :playing="p.playing"
       :resting="resting"
       :reduce-motion="appearance.reduceMotion"
       @surface="lines = $event"
-      @browse="browse"
+      @browse="openBrowse"
       @jump="jump"
     />
     <div
@@ -207,13 +221,6 @@ onUnmounted(() => {
       aria-label="同步歌词"
       role="region"
       tabindex="0"
-      @wheel.passive="
-        (e) => {
-          if (!e.shiftKey && !e.ctrlKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) browse()
-        }
-      "
-      @touchstart.passive="touchStart = $event.touches[0]"
-      @touchmove.passive="touchBrowse"
       @keydown="keyboardBrowse"
     >
       <button
@@ -221,33 +228,37 @@ onUnmounted(() => {
         :key="i"
         type="button"
         :class="{
-          now: i === active,
+          now: i === singing,
+          'lyric-preview': i === preview,
+          'lyric-context': i === focusIndex && i !== singing && i !== preview,
           'phrase-arrival': i === phraseArrival && !line.words,
           'line-leaving': i === leaving,
           'line-entering': i === entering,
-          'line-intro': single && active < 0 && i === 0,
+          'line-intro': single && active < 0 && preview === null && i === 0,
         }"
-        :data-offset="Math.max(-3, Math.min(3, i - Math.max(0, active)))"
-        :data-distance="Math.min(3, Math.abs(i - Math.max(0, active)))"
+        :data-offset="Math.max(-3, Math.min(3, i - Math.max(0, focusIndex)))"
+        :data-distance="Math.min(3, Math.abs(i - Math.max(0, focusIndex)))"
         :data-length="lengths[i]"
         :tabindex="
           showList ||
-          (!resting && (single ? i === Math.max(0, active) : Math.abs(i - Math.max(0, active)) < 3))
+          (!resting &&
+            (single ? i === Math.max(0, focusIndex) : Math.abs(i - Math.max(0, focusIndex)) < 3))
             ? undefined
             : -1
         "
         :aria-hidden="(resting && !showList) || undefined"
-        :aria-current="i === active ? 'true' : undefined"
+        :aria-current="i === singing ? 'true' : undefined"
         :aria-label="line.text"
         @click="jump(line.start)"
       >
         <span v-if="browsing" class="lyric-time" aria-hidden="true">{{ time(line.start) }}</span>
-        <LyricWords :line="line" :word-index="wordIndex" :timed="i === active" />
+        <LyricWords :line="line" :word-index="wordIndex" :timed="i === singing" />
       </button>
     </div>
+    <InterludeCue v-if="!cinema" :visible="!!gap" announce />
     <button v-if="browsing" class="resume-lyrics" @click="resume">
       <LocateFixed />
-      回到当前句
+      {{ gap || active < 0 ? '回到播放' : '回到当前句' }}
     </button>
   </div>
 </template>

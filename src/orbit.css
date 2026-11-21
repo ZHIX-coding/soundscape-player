@@ -90,9 +90,11 @@
 .layout-poster .plain-lyrics {
   max-width: min(630px, 88%);
   margin-inline: auto;
+  padding-inline: clamp(9px, 4%, 34px);
+}
+.layout-poster .plain-lyrics {
   background: #171220d9;
   border-radius: 14px;
-  padding-inline: clamp(9px, 4%, 34px);
 }
 .orbit-lyrics {
   --lyric-sung: #fff6e8;

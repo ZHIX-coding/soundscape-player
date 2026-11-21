@@ -10,6 +10,7 @@ import {
   Captions,
 } from 'lucide-vue-next'
 import PlaybackBackdrop from '../components/PlaybackBackdrop.vue'
+import CinemaStage from '../components/CinemaStage.vue'
 import LyricsPanel from '../components/LyricsPanel.vue'
 import StageSettings from '../components/StageSettings.vue'
 import { vHorizontalSwipe } from '../horizontalSwipe'
@@ -31,7 +32,59 @@ const quiet = ref(false)
 const canSwipe = () => p.queue.length > 1
 let hideTimer
 let nativeScreen = false
+let lyricTouch
 const wakeEvents = ['pointermove', 'pointerdown', 'keydown', 'focusin', 'focusout', 'close']
+
+function canBrowseFrom(target) {
+  if (
+    !p.song?.lyrics.length ||
+    settingsOpen.value ||
+    !lyricPanel.value ||
+    lyricPanel.value.browsing
+  )
+    return false
+  const control = target.closest(
+    'button, a, input, select, textarea, .now-header, .cinema-chapters, [role="dialog"]',
+  )
+  return !control || !!control.closest('.lyrics, .orbit-lyrics')
+}
+
+function browseOnWheel(event) {
+  if (
+    event.shiftKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    Math.abs(event.deltaY) <= Math.abs(event.deltaX) ||
+    !canBrowseFrom(event.target)
+  )
+    return
+  lyricPanel.value.openBrowse()
+}
+
+function startLyricTouch(event) {
+  lyricTouch = null
+  if (event.touches.length !== 1 || !canBrowseFrom(event.target)) return
+  lyricTouch = event.touches[0]
+}
+
+function moveLyricTouch(event) {
+  if (event.touches.length !== 1) {
+    lyricTouch = null
+    return
+  }
+  const touch = event.touches[0]
+  if (!lyricTouch || touch.identifier !== lyricTouch.identifier) return
+  const dx = Math.abs(touch.clientX - lyricTouch.clientX)
+  const dy = Math.abs(touch.clientY - lyricTouch.clientY)
+  if (dx < 15 && dy < 15) return
+  lyricTouch = null
+  if (dy > dx * 1.3 && canBrowseFrom(event.target)) lyricPanel.value.openBrowse()
+}
+
+function endLyricTouch() {
+  lyricTouch = null
+}
 
 function wakeControls() {
   clearTimeout(hideTimer)
@@ -40,16 +93,29 @@ function wakeControls() {
     !immersive.value ||
     !p.playing ||
     settingsOpen.value ||
-    !matchMedia('(hover: hover) and (pointer: fine)').matches
+    (appearance.lyrics !== 'cinema' && !matchMedia('(hover: hover) and (pointer: fine)').matches)
   )
     return
-  hideTimer = setTimeout(() => {
-    quiet.value = !document.querySelector(
-      'dialog[open], .now-header :focus-visible, .now-dock :focus-visible',
-    )
-  }, 2500)
+  hideTimer = setTimeout(
+    () => {
+      quiet.value = !document.querySelector(
+        'dialog[open], .now-header :focus-visible, .now-dock :focus-visible',
+      )
+    },
+    appearance.lyrics === 'cinema' ? 4200 : 2500,
+  )
 }
 watch([immersive, () => p.playing, settingsOpen], wakeControls)
+watch(
+  () => route.query.scene,
+  (scene) => {
+    if (scene !== 'album') return
+    appearance.lyrics = 'cinema'
+    appearance.background = 'album'
+    router.replace({ path: route.path, query: { ...route.query, scene: undefined } })
+  },
+  { immediate: true },
+)
 
 async function exitScreen() {
   immersive.value = false
@@ -100,9 +166,17 @@ onUnmounted(() => {
       ['layout-' + appearance.lyrics]: true,
       'artwork-background': appearance.background !== 'color',
       'photo-background': appearance.background === 'cover',
+      'album-stage': appearance.background === 'album',
+      'stage-in-motion': p.playing,
       'reduce-motion': appearance.reduceMotion,
       'has-lyrics': p.song.lyrics.length || p.song.plainLyrics,
     }"
+    :style="{ '--album-glow': appearance.glow / 100 }"
+    @wheel.passive="browseOnWheel"
+    @touchstart.passive="startLyricTouch"
+    @touchmove.passive="moveLyricTouch"
+    @touchend.passive="endLyricTouch"
+    @touchcancel.passive="endLyricTouch"
   >
     <PlaybackBackdrop
       :cover="p.song.cover"
@@ -112,6 +186,7 @@ onUnmounted(() => {
     <header class="now-header">
       <RouterLink class="now-tool" :to="backTo" aria-label="返回" title="返回">
         <ChevronLeft />
+        <span v-if="appearance.lyrics === 'cinema'" class="cinema-back-label">声境</span>
       </RouterLink>
       <div class="now-tools">
         <button
@@ -134,7 +209,9 @@ onUnmounted(() => {
         </button>
       </div>
     </header>
+    <CinemaStage v-if="appearance.lyrics === 'cinema'" :key="p.id" ref="lyricPanel" />
     <div
+      v-else
       v-horizontal-swipe="{ step: p.step, enabled: canSwipe }"
       class="now-content"
       :class="{ swipeable: canSwipe() }"

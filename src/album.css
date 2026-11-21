@@ -1,0 +1,295 @@
+/* A soft, full-bleed exposure extends the square artwork beyond its original frame. */
+.album-frame {
+  isolation: isolate;
+  background: radial-gradient(ellipse at 74% 30%, var(--cover-color), #16131b 82%);
+}
+.album-atmosphere,
+.album-projection,
+.album-bloom {
+  position: absolute;
+  pointer-events: none;
+}
+.album-atmosphere {
+  inset: -7%;
+  filter: blur(22px) saturate(1.25);
+  opacity: 0.86;
+}
+.album-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.album-projection {
+  inset: 0 0 0 auto;
+  width: max(64%, 97dvh);
+  max-width: 100%;
+  mask-image: linear-gradient(90deg, transparent, #000b 16%, black 35%);
+}
+.album-projection img {
+  object-position: 50% 44%;
+  animation: projection-drift 30s ease-in-out infinite alternate;
+  transform: scale(1.025);
+}
+.album-bloom {
+  inset: -9%;
+  background:
+    radial-gradient(
+      ellipse at 73% 23%,
+      color-mix(in srgb, var(--cover-color) 52%, #fff1d6),
+      transparent 34%
+    ),
+    radial-gradient(ellipse at 16% 70%, var(--cover-shadow, #716376), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: calc(var(--album-glow) * 0.74);
+  animation: bloom-drift 17s ease-in-out infinite alternate;
+}
+.album-frame :is(.album-projection img, .album-bloom) {
+  animation-play-state: paused;
+}
+.stage-in-motion .album-frame :is(.album-projection img, .album-bloom) {
+  animation-play-state: running;
+}
+@keyframes projection-drift {
+  from {
+    transform: scale(1.025) translate(0, 0);
+  }
+  to {
+    transform: scale(1.078) translate(-1.1%, 0.65%);
+  }
+}
+@keyframes bloom-drift {
+  from {
+    transform: translate(-1.5%, 1%);
+  }
+  to {
+    transform: translate(2%, -1.5%);
+  }
+}
+.album-crossfade-enter-active,
+.album-crossfade-leave-active {
+  transition: opacity 850ms ease-in-out;
+}
+.album-crossfade-enter-active {
+  z-index: 0;
+}
+.album-crossfade-enter-from,
+.album-crossfade-leave-to {
+  opacity: 0;
+}
+.album-stage::after {
+  background:
+    linear-gradient(180deg, #0e1018ab, transparent 28%, #0c0d1380 78%, #080a10ed),
+    linear-gradient(90deg, #13121c80, #14101980);
+}
+.layout-cinema.album-stage::after {
+  background:
+    linear-gradient(180deg, #0c0a13ae, transparent 19%, transparent 58%, #090910dd 92%, #080810f2),
+    linear-gradient(90deg, #100e18cf, #100d18b3 33%, #100e1854 59%, #100e180b 82%);
+}
+.album-stage .cinema-stage {
+  max-width: 1320px;
+}
+.album-stage .cinema-art {
+  top: 7%;
+  left: 0;
+  width: 48px;
+  transform: translateY(8px);
+  opacity: 0;
+  transition:
+    opacity 0.45s ease,
+    transform 0.85s var(--scene-ease);
+}
+.album-stage .cinema-disc {
+  display: none;
+}
+.album-stage .cinema-titles {
+  top: 60%;
+  left: 0;
+  width: 56%;
+  text-align: left;
+  transform: translateY(-50%);
+}
+.album-stage .cinema-titles h1 {
+  font-size: clamp(60px, 8.3vw, 134px);
+  text-shadow: 0 4px 32px #100d1740;
+}
+.album-stage .cinema-titles.long-title h1 {
+  font-size: clamp(32px, 4.5vw, 72px);
+}
+.album-stage .cinema-reading .cinema-art {
+  transform: none;
+  opacity: 1;
+}
+.album-stage .cinema-reading .cinema-titles {
+  left: 62px;
+  top: 7%;
+  width: calc(70% - 62px);
+  transform: none;
+}
+.album-stage .cinema-reading .cinema-titles h1 {
+  margin: 0 0 4px;
+  font-size: clamp(20px, 2vw, 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.album-stage .cinema-words {
+  inset: 19% 39% 0 0;
+  transform: translateY(12px);
+}
+.album-stage .cinema-reading .cinema-words {
+  transform: none;
+}
+.album-stage .cinema-words .lyrics-panel::before {
+  content: none;
+}
+.album-stage .cinema-words .lyrics {
+  --lyric-anchor: 49;
+  --lyric-sung: #fff9ee;
+  --lyric-near: #e2ded7;
+}
+.album-stage .cinema-words .lyrics-panel:not(.is-browsing) button.now {
+  --lyric-waiting: #f1e7da;
+}
+.album-stage .cinema-words button.now {
+  text-shadow: 0 2px 12px #11101b50;
+}
+.album-stage:has(.cinema-reading) .album-projection {
+  opacity: 0.82;
+}
+.album-projection {
+  transition: opacity 0.9s ease;
+}
+.album-stage .cinema-phase,
+.album-stage .cinema-titles p {
+  color: #f1e5d3;
+}
+.album-stage .now-header {
+  border-color: #fff5dc38;
+}
+.album-stage .now-tools {
+  gap: 0;
+  padding-inline: 4px;
+  border-radius: 28px;
+  background: #191720a3;
+  backdrop-filter: blur(12px);
+}
+.display-groups .background-choices:has(.preview-bg-album) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.preview-bg-album {
+  position: relative;
+  overflow: hidden;
+  background: #4e404b;
+}
+.preview-bg-album img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.preview-bg-album::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(65deg, #171521bb, transparent 80%);
+}
+.display-panel .album-glow-control {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) 4ch;
+  gap: 14px;
+  align-items: center;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.album-glow-control input {
+  width: 100%;
+  min-height: 34px;
+}
+.album-glow-control output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+@media (max-width: 720px) and (orientation: portrait) {
+  .album-projection {
+    inset: 0 0 auto;
+    width: 100%;
+    height: max(54dvh, 100vw);
+    mask-image: linear-gradient(180deg, black 48%, #000e 65%, transparent);
+  }
+  .layout-cinema.album-stage::after {
+    background: linear-gradient(
+      180deg,
+      #0e0c15d9,
+      #17121d9e 108px,
+      #100c1612 max(145px, 21%),
+      #100c162e 34%,
+      #100c16bc 57%,
+      #0b0b13ef 93%
+    );
+  }
+  .album-stage .cinema-titles {
+    top: auto;
+    bottom: 5%;
+    transform: none;
+    width: 95%;
+  }
+  .album-stage .cinema-titles h1 {
+    font-size: clamp(46px, 14vw, 82px);
+  }
+  .album-stage .cinema-titles.long-title h1 {
+    font-size: clamp(29px, 8vw, 44px);
+  }
+  .album-stage .cinema-phase::after {
+    display: none;
+  }
+  .album-stage .cinema-reading .cinema-art {
+    top: 0;
+    width: 38px;
+  }
+  .album-stage .cinema-reading .cinema-titles {
+    top: 0;
+    bottom: auto;
+    left: 49px;
+    width: calc(100% - 50px);
+  }
+  .album-stage .cinema-reading .cinema-titles h1 {
+    font-size: 19px;
+    margin: 0 0 2px;
+  }
+  .album-stage .cinema-words {
+    inset: 29% 0 0;
+  }
+  .album-stage .cinema-words .lyrics {
+    --lyric-anchor: 60;
+  }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .album-stage .cinema-art {
+    top: 0;
+    width: 30px;
+  }
+  .album-stage .cinema-reading .cinema-titles {
+    top: 0;
+    left: 40px;
+  }
+  .album-stage .cinema-reading .cinema-titles h1 {
+    font-size: 16px;
+  }
+  .album-stage .cinema-titles h1 {
+    font-size: clamp(32px, 6vw, 66px);
+  }
+  .album-stage .cinema-words {
+    inset-block: 32px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .album-frame *,
+  .album-crossfade-enter-active,
+  .album-crossfade-leave-active {
+    animation: none !important;
+    transition: none !important;
+  }
+}

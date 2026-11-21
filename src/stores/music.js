@@ -72,13 +72,14 @@ export const usePlayer = defineStore('player', () => {
   const music = useMusic()
   const old = read('player', {})
   const queue = ref(validIds(old?.queue))
-  if (!queue.value.length) queue.value = songs.map((s) => s.id)
+  const savedEmptyQueue = Array.isArray(old?.queue) && old.queue.length === 0
+  if (!queue.value.length && !savedEmptyQueue) queue.value = songs.map((s) => s.id)
   const id = ref(queue.value.includes(old?.id) ? old.id : queue.value[0])
   const song = computed(() => catalog.value.get(id.value))
   const audio = new Audio()
   audio.preload = 'metadata'
   const playing = ref(false),
-    position = ref(old?.id === id.value ? Math.max(0, Number(old?.position) || 0) : 0),
+    position = ref(id.value && old?.id === id.value ? Math.max(0, Number(old?.position) || 0) : 0),
     duration = ref(song.value?.duration ?? 0)
   const volume = ref(Math.min(1, Math.max(0, Number.isFinite(old?.volume) ? old.volume : 0.7)))
   const modes = ['顺序播放', '随机播放', '单曲循环']
@@ -94,19 +95,23 @@ export const usePlayer = defineStore('player', () => {
     })
   }
   let resumeAt = position.value,
-    lastSecond = -1
+    lastSecond = -1,
+    mediaRevision = 0
   function load() {
     if (!song.value) return
+    mediaRevision++
     audio.src = song.value.audio
     duration.value = song.value.duration
     audio.load()
   }
   audio.onloadedmetadata = () => {
+    if (!song.value || audio.readyState < HTMLMediaElement.HAVE_METADATA) return
     duration.value = audio.duration
     if (Number.isFinite(duration.value)) audio.currentTime = Math.min(resumeAt, duration.value)
     resumeAt = 0
   }
   audio.ontimeupdate = () => {
+    if (!song.value || audio.readyState < HTMLMediaElement.HAVE_METADATA) return
     position.value = audio.currentTime
     const n = Math.floor(position.value)
     if (n !== lastSecond) {
@@ -114,22 +119,29 @@ export const usePlayer = defineStore('player', () => {
       persist()
     }
   }
-  audio.onplaying = () => (playing.value = true)
+  audio.onplaying = () => {
+    if (song.value && !audio.paused && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA)
+      playing.value = true
+  }
   audio.onpause = () => {
+    if (!audio.paused) return
     playing.value = false
     persist()
   }
   audio.onerror = () => {
+    if (!song.value || !audio.error) return
     playing.value = false
     music.notify('无法读取这首歌的音频，请重试或切换曲目')
   }
   async function play() {
     if (!song.value) return
+    if (audio.error) load()
+    const revision = mediaRevision
     try {
-      if (audio.error) load()
       await audio.play()
     } catch (e) {
-      if (e.name !== 'AbortError') music.notify('播放未成功，请再点一次播放或切歌')
+      if (revision === mediaRevision && e.name !== 'AbortError')
+        music.notify('播放未成功，请再点一次播放或切歌')
     }
   }
   function select(next, ids) {
@@ -170,13 +182,30 @@ export const usePlayer = defineStore('player', () => {
     if (next === id.value) seek(0)
     return select(next)
   }
-  audio.onended = () => step(1, true)
+  audio.onended = () => {
+    if (song.value && audio.ended) step(1, true)
+  }
   function seek(v) {
     seekVersion.value++
     const value = Math.min(duration.value, Math.max(0, Number(v) || 0))
     position.value = value
     if (audio.readyState) audio.currentTime = value
     else resumeAt = value
+    persist()
+  }
+  function clearQueue() {
+    mediaRevision++
+    queue.value = []
+    id.value = undefined
+    playing.value = false
+    position.value = 0
+    duration.value = 0
+    resumeAt = 0
+    lastSecond = -1
+    seekVersion.value++
+    audio.pause()
+    audio.removeAttribute('src')
+    audio.load()
     persist()
   }
   function enqueue(key) {
@@ -233,6 +262,7 @@ export const usePlayer = defineStore('player', () => {
     toggle,
     step,
     seek,
+    clearQueue,
     enqueue,
     remove,
     move,

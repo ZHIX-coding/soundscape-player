@@ -1,7 +1,9 @@
 <script setup>
 import Modal from './Modal.vue'
 import { backgroundStyles, lyricLayouts, useAppearance } from '../stores/appearance'
+import { usePlayer } from '../stores/music'
 const appearance = useAppearance()
+const player = usePlayer()
 const emit = defineEmits(['close'])
 </script>
 
@@ -36,12 +38,19 @@ const emit = defineEmits(['close'])
             :aria-pressed="appearance.background === id"
             @click="appearance.background = id"
           >
-            <span class="background-preview" :class="'preview-bg-' + id" aria-hidden="true"></span>
+            <span class="background-preview" :class="'preview-bg-' + id" aria-hidden="true">
+              <img v-if="id === 'album' && player.song" :src="player.song.cover" alt="" />
+            </span>
             {{ label }}
           </button>
         </div>
       </fieldset>
     </div>
+    <label v-if="appearance.background === 'album'" class="album-glow-control">
+      <span>光晕强度</span>
+      <input v-model.number="appearance.glow" type="range" min="0" max="100" aria-label="光晕强度" />
+      <output>{{ appearance.glow }}%</output>
+    </label>
     <label class="motion-choice">
       <input v-model="appearance.reduceMotion" type="checkbox" />
       减少动效

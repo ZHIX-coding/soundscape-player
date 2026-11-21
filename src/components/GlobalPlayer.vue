@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   SkipBack,
@@ -14,6 +14,9 @@ import {
   Repeat1,
   X,
   ChevronDown,
+  Trash2,
+  LocateFixed,
+  SlidersHorizontal,
 } from 'lucide-vue-next'
 import { playerFromQueue, queueFromPlayer, queueLocation } from '../browseOrigin'
 import { usePlayer, useMusic } from '../stores/music'
@@ -26,6 +29,12 @@ const route = useRoute()
 const p = usePlayer(),
   m = useMusic(),
   panel = ref('')
+const confirmingClear = ref(false)
+const clearButton = ref(null)
+const cancelButton = ref(null)
+const discoverLink = ref(null)
+const queueList = ref(null)
+let queueScrollBeforeClear = 0
 const progress = computed(() =>
   p.duration > 0 ? Math.min(100, (p.position / p.duration) * 100) : 0,
 )
@@ -34,6 +43,63 @@ const queuedTracks = computed(() => {
   const byId = new Map(songs.map((song) => [song.id, song]))
   return p.queue.map((id) => byId.get(id)).filter(Boolean)
 })
+function locateCurrentTrack() {
+  const list = queueList.value
+  const row = list?.querySelector('.queue-row.current')
+  if (!row) return
+  list.scrollTop +=
+    row.getBoundingClientRect().top -
+    list.getBoundingClientRect().top -
+    (list.clientHeight - row.offsetHeight) / 2
+}
+function revealQueueFocus(event) {
+  const list = queueList.value
+  const row = event.target.closest('.queue-row')
+  if (!list || !row) return
+  const view = list.getBoundingClientRect()
+  const item = row.getBoundingClientRect()
+  if (item.top < view.top) list.scrollTop -= view.top - item.top
+  else if (item.bottom > view.bottom) list.scrollTop += item.bottom - view.bottom
+}
+async function moveInQueue(id, offset, button) {
+  p.move(id, offset)
+  await nextTick()
+  if (!button.isConnected) return
+  const target = button.disabled ? button.closest('.queue-row').querySelector('.track') : button
+  target.focus({ preventScroll: true })
+}
+async function removeFromQueue(id, button) {
+  const row = button.closest('.queue-row')
+  const neighbor = row.nextElementSibling ?? row.previousElementSibling
+  p.remove(id)
+  await nextTick()
+  neighbor?.querySelector('.track')?.focus({ preventScroll: true })
+}
+function closePanel() {
+  if (confirmingClear.value) {
+    cancelClear()
+    return
+  }
+  panel.value = ''
+}
+async function requestClear() {
+  queueScrollBeforeClear = queueList.value?.scrollTop ?? 0
+  confirmingClear.value = true
+  await nextTick()
+  cancelButton.value?.focus()
+}
+async function cancelClear() {
+  confirmingClear.value = false
+  await nextTick()
+  if (queueList.value) queueList.value.scrollTop = queueScrollBeforeClear
+  clearButton.value?.focus({ preventScroll: true })
+}
+async function confirmClear() {
+  p.clearQueue()
+  confirmingClear.value = false
+  await nextTick()
+  discoverLink.value?.$el.focus()
+}
 function changeTrack(offset) {
   if (canSwipe()) p.step(offset)
 }
@@ -94,6 +160,15 @@ function cycle() {
         </button>
         <button class="icon" aria-label="下一首" @click="p.step(1)"><SkipForward /></button>
       </div>
+      <button
+        v-if="nowPlaying"
+        class="icon mobile-playback-settings"
+        aria-label="播放设置"
+        title="播放设置"
+        @click="panel = '播放设置'"
+      >
+        <SlidersHorizontal />
+      </button>
       <div v-if="!compact" class="actions">
         <button class="icon wide-only" :aria-label="p.mode" :title="p.mode" @click="cycle">
           <Shuffle v-if="p.mode === '随机播放'" />
@@ -119,7 +194,7 @@ function cycle() {
     </div>
   </footer>
   <button
-    v-if="compact && p.song"
+    v-if="compact"
     class="wall-round wall-queue-button"
     aria-label="列表"
     title="列表"
@@ -127,8 +202,25 @@ function cycle() {
   >
     <ListMusic />
   </button>
-  <Modal v-if="panel" :title="panel" @close="panel = ''">
-    <label>
+  <Modal
+    v-if="panel"
+    :title="panel"
+    :panel-class="panel === '列表' ? 'queue-panel' : 'playback-panel'"
+    @close="closePanel"
+    @opened="locateCurrentTrack"
+  >
+    <template v-if="panel === '列表' && !confirmingClear && queuedTracks.length" #header-actions>
+      <button
+        class="icon"
+        type="button"
+        aria-label="定位当前曲目"
+        title="定位当前曲目"
+        @click="locateCurrentTrack"
+      >
+        <LocateFixed aria-hidden="true" />
+      </button>
+    </template>
+    <label v-if="!confirmingClear" :class="{ 'queue-volume': panel === '列表' }">
       音量 {{ Math.round(p.volume * 100) }}%
       <input
         v-model.number="p.volume"
@@ -139,59 +231,106 @@ function cycle() {
         aria-label="调节音量"
       />
     </label>
+    <label v-if="panel === '播放设置'">
+      播放模式
+      <select v-model="p.mode">
+        <option v-for="mode in p.modes" :key="mode">{{ mode }}</option>
+      </select>
+    </label>
     <template v-if="panel === '列表'">
-      <button v-if="compact" class="pill" @click="panel = ''">拼贴</button>
-      <RouterLink v-else class="pill" :to="queueLocation(route.path)" @click="panel = ''">
-        拼贴
-      </RouterLink>
-      <button class="pill" @click="cycle">{{ p.mode }}</button>
-      <label class="mobile-seek">
-        进度 {{ time(p.position) }}
-        <input
-          type="range"
-          :max="p.duration"
-          :value="p.position"
-          @input="p.seek($event.target.value)"
-        />
-      </label>
-      <div
-        v-for="(song, i) in queuedTracks"
-        :key="song.id"
-        class="queue-row"
-        :class="{ current: p.id === song.id }"
-      >
-        <button class="menu-item track" @click="p.select(song.id)">
-          <img :src="song.cover" alt="" />
-          <span>
-            <b>{{ song.title }}</b>
-            <small>{{ p.id === song.id ? '当前曲目 · ' : '' }}{{ song.artist }}</small>
-          </span>
-        </button>
-        <button
-          class="icon"
-          :aria-label="'上移 ' + song.title"
-          :disabled="i === 0"
-          @click="p.move(song.id, -1)"
-        >
-          <ChevronUp />
-        </button>
-        <button
-          class="icon"
-          :aria-label="'下移 ' + song.title"
-          :disabled="i === queuedTracks.length - 1"
-          @click="p.move(song.id, 1)"
-        >
-          <ChevronDown />
-        </button>
-        <button
-          v-if="song.id !== p.id"
-          class="icon"
-          aria-label="移出队列"
-          @click="p.remove(song.id)"
-        >
-          <X />
-        </button>
+      <div v-if="confirmingClear" class="queue-clear-confirm">
+        <p>清空播放队列并停止当前播放？</p>
+        <div class="queue-tools">
+          <button ref="cancelButton" class="pill" type="button" @click="cancelClear">取消</button>
+          <button class="pill queue-clear" type="button" @click="confirmClear">确认清空</button>
+        </div>
       </div>
+      <template v-else>
+        <div class="queue-tools">
+          <button v-if="compact" class="pill" @click="panel = ''">拼贴</button>
+          <RouterLink v-else class="pill" :to="queueLocation(route.path)" @click="panel = ''">
+            拼贴
+          </RouterLink>
+          <button class="pill" @click="cycle">{{ p.mode }}</button>
+          <button
+            v-if="queuedTracks.length"
+            ref="clearButton"
+            class="pill queue-clear queue-clear-trigger"
+            type="button"
+            @click="requestClear"
+          >
+            <Trash2 aria-hidden="true" />
+            清空队列
+          </button>
+        </div>
+        <div v-if="!queuedTracks.length" class="queue-panel-empty">
+          <p>播放队列为空</p>
+          <RouterLink ref="discoverLink" class="pill" to="/library" @click="panel = ''">
+            去发现
+          </RouterLink>
+        </div>
+        <template v-else>
+          <label class="mobile-seek">
+            进度 {{ time(p.position) }}
+            <input
+              type="range"
+              :max="p.duration"
+              :value="p.position"
+              @input="p.seek($event.target.value)"
+            />
+          </label>
+          <div
+            ref="queueList"
+            class="queue-list"
+            role="region"
+            aria-label="播放队列曲目"
+            @focusin="revealQueueFocus"
+          >
+            <div
+              v-for="(song, i) in queuedTracks"
+              :key="song.id"
+              class="queue-row"
+              :class="{ current: p.id === song.id }"
+            >
+              <button
+                class="menu-item track"
+                :aria-current="p.id === song.id ? 'true' : undefined"
+                @click="p.select(song.id)"
+              >
+                <img :src="song.cover" alt="" loading="lazy" decoding="async" />
+                <span>
+                  <b>{{ song.title }}</b>
+                  <small>{{ p.id === song.id ? '当前曲目 · ' : '' }}{{ song.artist }}</small>
+                </span>
+              </button>
+              <button
+                class="icon"
+                :aria-label="'上移 ' + song.title"
+                :disabled="i === 0"
+                @click="moveInQueue(song.id, -1, $event.currentTarget)"
+              >
+                <ChevronUp />
+              </button>
+              <button
+                class="icon"
+                :aria-label="'下移 ' + song.title"
+                :disabled="i === queuedTracks.length - 1"
+                @click="moveInQueue(song.id, 1, $event.currentTarget)"
+              >
+                <ChevronDown />
+              </button>
+              <button
+                v-if="song.id !== p.id"
+                class="icon"
+                aria-label="移出队列"
+                @click="removeFromQueue(song.id, $event.currentTarget)"
+              >
+                <X />
+              </button>
+            </div>
+          </div>
+        </template>
+      </template>
     </template>
   </Modal>
 </template>

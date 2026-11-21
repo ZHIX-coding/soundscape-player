@@ -1,19 +1,33 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowUpRight, ChevronLeft, ListMusic, LocateFixed, Pause, Play } from 'lucide-vue-next'
+import {
+  ArrowUpRight,
+  ChevronLeft,
+  Heart,
+  ListMusic,
+  LocateFixed,
+  MoreHorizontal,
+  Pause,
+  Play,
+} from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
+import TrackActions from '../components/TrackActions.vue'
 import QueueLyrics from '../components/QueueLyrics.vue'
 import { songs } from '../data/songs'
 import { vHorizontalSwipe } from '../horizontalSwipe'
 import { playerFromQueue, queueLocation } from '../browseOrigin'
 import { useAppearance } from '../stores/appearance'
-import { usePlayer } from '../stores/music'
+import { queueTilePositions } from '../queueTilePositions'
+import { time } from '../persistence'
+import { useMusic, usePlayer } from '../stores/music'
 
 const player = usePlayer()
+const music = useMusic()
 const appearance = useAppearance()
 const route = useRoute()
 const viewport = ref(null)
 const grid = ref(null)
+const menuSong = ref(null)
 const tracks = computed(() => {
   const byId = new Map(songs.map((song) => [song.id, song]))
   return player.queue.map((id) => byId.get(id)).filter(Boolean)
@@ -22,7 +36,30 @@ const backTo = computed(() => {
   const { query } = queueLocation(route.query.from, route.query.origin)
   return query.from === 'player' ? { path: '/player', query: { from: query.origin } } : query.from
 })
-const currentIndex = computed(() => tracks.value.findIndex((song) => song.id === player.id))
+const columns = ref(8)
+const visibleRows = ref(5)
+const tiles = computed(() =>
+  queueTilePositions(tracks.value, player.id, columns.value, visibleRows.value),
+)
+const edgeRows = computed(() =>
+  tracks.value.length <= 3 ? Math.ceil(visibleRows.value / 2) + 1 : 0,
+)
+const repeatCovers = computed(() => {
+  if (!tracks.value.length) return []
+  const offset = tracks.value.findIndex((track) => track.id === player.id) + 1
+  return Array.from(
+    { length: columns.value },
+    (_, index) => tracks.value[(offset + index) % tracks.value.length].cover,
+  )
+})
+const duration = computed(() =>
+  Number.isFinite(player.duration) && player.duration > 0 ? player.duration : 0,
+)
+const progress = computed(() =>
+  duration.value ? Math.min(100, (player.position / duration.value) * 100) : 0,
+)
+const timeLabel = computed(() => time(player.position) + ' / ' + time(duration.value))
+const favorite = computed(() => music.favorites.includes(player.id))
 const canSwipe = () => tracks.value.length > 1
 const systemMotion = matchMedia('(prefers-reduced-motion: reduce)')
 const animations = new Map()
@@ -35,7 +72,7 @@ function visibleRects() {
   if (!box || !grid.value) return new Map()
   const bounds = box.getBoundingClientRect()
   const rects = new Map()
-  for (const card of grid.value.children) {
+  for (const card of grid.value.querySelectorAll(':scope > .wall-tile')) {
     const rect = card.getBoundingClientRect()
     if (rect.bottom > bounds.top && rect.top < bounds.bottom) rects.set(card, rect)
   }
@@ -54,7 +91,7 @@ function centerCurrent() {
   if (!box || !card) return null
   const bounds = box.getBoundingClientRect()
   const rect = card.getBoundingClientRect()
-  const controlsSpace = parseFloat(getComputedStyle(box).paddingBottom)
+  const controlsSpace = parseFloat(getComputedStyle(box).getPropertyValue('--wall-controls-space'))
   const center = bounds.top + (box.clientHeight - controlsSpace) / 2
   box.scrollTop += rect.top + rect.height / 2 - center
   return card
@@ -107,7 +144,8 @@ async function focusCurrent({ animate = false, focus = false } = {}) {
 watch(
   () => player.id,
   (id) => {
-    const focus = keyboardSong === id
+    const focus = keyboardSong === id || !!menuSong.value
+    menuSong.value = null
     keyboardSong = undefined
     focusCurrent({ animate: true, focus })
   },
@@ -124,8 +162,21 @@ function recenter() {
 }
 
 onMounted(() => {
-  centerCurrent()
-  resize = new ResizeObserver(recenter)
+  async function updateColumns() {
+    const box = viewport.value
+    if (!box) return
+    const width = box.clientWidth
+    columns.value = width <= 540 ? 3 : width < 920 ? 6 : 8
+    await nextTick()
+    if (!grid.value || !viewport.value) return
+    const style = getComputedStyle(grid.value)
+    const rowStep = parseFloat(style.gridAutoRows) + parseFloat(style.rowGap)
+    const height = box.clientHeight
+    if (rowStep > 0) visibleRows.value = Math.max(1, Math.ceil(height / rowStep))
+    recenter()
+  }
+  updateColumns()
+  resize = new ResizeObserver(updateColumns)
   resize.observe(viewport.value)
   systemMotion.addEventListener('change', recenter)
 })
@@ -149,7 +200,6 @@ onBeforeUnmount(() => {
         <ChevronLeft />
       </RouterLink>
       <h1 id="wall-heading" class="visually-hidden">拼贴</h1>
-      <small v-if="tracks.length">{{ tracks.length }} 首</small>
     </header>
     <div ref="viewport" class="wall-viewport" role="region" aria-label="播放队列" tabindex="0">
       <div
@@ -157,15 +207,47 @@ onBeforeUnmount(() => {
         ref="grid"
         v-horizontal-swipe="{ step: player.step, enabled: canSwipe }"
         class="wall-grid"
+        :style="{
+          '--wall-columns': columns,
+          '--wall-edge-rows': edgeRows,
+        }"
       >
+        <div
+          class="wall-repeats"
+          :class="{
+            'wall-repeats-solo': tracks.length === 1,
+            'wall-repeats-short': edgeRows > 0,
+          }"
+          aria-hidden="true"
+        >
+          <div class="wall-repeat-bands">
+            <i
+              v-for="(cover, index) in repeatCovers"
+              :key="index"
+              :style="{
+                '--repeat-cover': 'url(' + JSON.stringify(cover) + ')',
+                '--repeat-band-crop': (index % 4) * 17 + '%',
+              }"
+            />
+          </div>
+          <div
+            v-for="(tile, index) in tiles.repeats"
+            :key="tile.row + ':' + tile.col"
+            class="wall-repeat"
+            :style="{
+              '--repeat-image': 'url(' + JSON.stringify(tile.cover) + ')',
+              '--repeat-row': tile.row,
+              '--repeat-col': tile.col,
+              '--repeat-crop': index % 5,
+            }"
+          ></div>
+        </div>
         <article
           v-for="(song, index) in tracks"
           :key="song.id"
           class="wall-tile"
-          :class="{
-            'wall-current': song.id === player.id,
-            'wall-wide': index % 9 === 4 && Math.abs(index - currentIndex) > 9,
-          }"
+          :class="{ 'wall-current': song.id === player.id }"
+          :style="tiles.positions[index]"
           :data-track-id="song.id"
         >
           <img
@@ -181,14 +263,26 @@ onBeforeUnmount(() => {
               <p>{{ song.artist }}</p>
             </div>
             <QueueLyrics :key="song.id" />
-            <RouterLink
-              class="wall-round wall-detail"
-              :to="playerFromQueue(route.query)"
-              aria-label="打开播放详情"
-              title="打开播放详情"
-            >
-              <ArrowUpRight aria-hidden="true" />
-            </RouterLink>
+            <div class="wall-corner-actions">
+              <button
+                class="wall-round wall-favorite"
+                type="button"
+                aria-label="收藏当前曲目"
+                :title="favorite ? '取消收藏' : '收藏当前曲目'"
+                :aria-pressed="favorite"
+                @click="music.favorite(song.id)"
+              >
+                <Heart aria-hidden="true" />
+              </button>
+              <RouterLink
+                class="wall-round wall-detail"
+                :to="playerFromQueue(route.query)"
+                aria-label="打开播放详情"
+                title="打开播放详情"
+              >
+                <ArrowUpRight aria-hidden="true" />
+              </RouterLink>
+            </div>
             <div class="wall-current-actions">
               <button
                 class="wall-round wall-play"
@@ -198,13 +292,31 @@ onBeforeUnmount(() => {
                 <Pause v-if="player.playing" />
                 <Play v-else />
               </button>
+              <span class="wall-time">{{ timeLabel }}</span>
+              <button
+                class="wall-round wall-more"
+                type="button"
+                aria-label="更多操作"
+                title="更多操作"
+                aria-haspopup="dialog"
+                @click="menuSong = song"
+              >
+                <MoreHorizontal aria-hidden="true" />
+              </button>
             </div>
-            <progress
+            <input
               class="wall-progress"
+              type="range"
+              min="0"
+              :max="duration"
+              step="0.1"
+              :disabled="duration === 0"
               :value="player.position"
-              :max="player.duration || 1"
+              :style="{ '--wall-progress': progress + '%' }"
               aria-label="当前曲目进度"
-            ></progress>
+              :aria-valuetext="timeLabel"
+              @input="player.seek($event.target.value)"
+            />
           </template>
           <button
             v-else
@@ -235,5 +347,6 @@ onBeforeUnmount(() => {
     >
       <LocateFixed />
     </button>
+    <TrackActions v-if="menuSong" :song="menuSong" @close="menuSong = null" />
   </section>
 </template>
