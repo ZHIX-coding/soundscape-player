@@ -424,6 +424,15 @@ body:has(.layout-cinema) .now-dock .play {
     width: var(--stage-width, calc(100% - 28px));
   }
 }
+@media (max-width: 360px) {
+  .layout-cinema .cinema-back-label {
+    display: none;
+  }
+  .layout-cinema .now-tool {
+    gap: 5px;
+    padding-inline: 7px;
+  }
+}
 @media (max-height: 520px) and (min-aspect-ratio: 1/1) {
   .layout-cinema .now-header {
     inset-block-start: 3px;

@@ -3,6 +3,7 @@ import { computed, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { ChevronLeft } from 'lucide-vue-next'
 import CoverWall from '../components/CoverWall.vue'
+import SearchEmpty from '../components/SearchEmpty.vue'
 import TrackWall from '../components/TrackWall.vue'
 import { songs } from '../data/songs'
 
@@ -55,7 +56,8 @@ const items = computed(() =>
         </RouterLink>
       </template>
       <template #empty>
-        <p class="cover-empty">{{ query ? '没有匹配的歌手' : '暂无歌手' }}</p>
+        <SearchEmpty v-if="query">没有匹配的歌手</SearchEmpty>
+        <p v-else class="cover-empty">暂无歌手</p>
       </template>
     </CoverWall>
   </section>

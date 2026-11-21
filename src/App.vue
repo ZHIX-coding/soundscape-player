@@ -13,6 +13,11 @@ const m = useMusic(),
   }),
   field = ref(null)
 provide('search', search)
+function clearSearch() {
+  search.value = ''
+  field.value?.focus({ preventScroll: true })
+}
+provide('clearSearch', clearSearch)
 function hotkey(e) {
   if (
     e.key === '/' &&
@@ -58,14 +63,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', hotkey))
           <span aria-hidden="true">队列</span>
         </RouterLink>
       </nav>
-      <label class="search">
-        <Search />
+      <div class="search">
+        <Search aria-hidden="true" />
         <input ref="field" v-model="search" aria-label="搜索曲库" placeholder="搜索" />
-        <button v-if="search" class="icon" aria-label="清除搜索" @click="search = ''">
+        <button v-if="search" class="icon" aria-label="清除搜索" @click="clearSearch">
           <X />
         </button>
         <kbd v-else>/</kbd>
-      </label>
+      </div>
     </div>
   </header>
   <main

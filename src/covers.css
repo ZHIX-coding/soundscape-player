@@ -217,6 +217,14 @@
   align-self: center;
   color: var(--muted);
 }
+.search-empty {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+.search-empty .pill {
+  min-height: 44px;
+}
 @media (min-width: 721px) {
   .dock:not(.queue-dock, .now-dock) {
     width: min(760px, calc(100% - 60px));

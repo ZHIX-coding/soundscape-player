@@ -6,6 +6,7 @@ import { useMusic, usePlayer } from '../stores/music'
 import CoverWall from './CoverWall.vue'
 import CoverBackdrop from './CoverBackdrop.vue'
 import TrackActions from './TrackActions.vue'
+import SearchEmpty from './SearchEmpty.vue'
 
 const props = defineProps({
   tracks: { type: Array, required: true },
@@ -33,7 +34,7 @@ const cover = computed(() => {
   return (items.value.includes(preview.value) ? preview.value : items.value[0])?.cover
 })
 function play(song) {
-  if (player.id === song.id && player.playing) player.toggle()
+  if (player.id === song.id) player.toggle()
   else
     player.select(
       song.id,
@@ -101,9 +102,9 @@ function play(song) {
         </div>
       </template>
       <template #empty>
-        <div class="cover-empty">
-          <p v-if="query">没有匹配的曲目</p>
-          <slot v-else name="empty">暂无曲目</slot>
+        <SearchEmpty v-if="query">没有匹配的曲目</SearchEmpty>
+        <div v-else class="cover-empty">
+          <slot name="empty">暂无曲目</slot>
         </div>
       </template>
     </CoverWall>

@@ -4,6 +4,7 @@ import { Heart, Plus } from 'lucide-vue-next'
 import CoverWall from '../components/CoverWall.vue'
 import PlaylistArtwork from '../components/PlaylistArtwork.vue'
 import PlaylistForm from '../components/PlaylistForm.vue'
+import SearchEmpty from '../components/SearchEmpty.vue'
 import { songs } from '../data/songs'
 import { useMusic } from '../stores/music'
 
@@ -49,7 +50,7 @@ const shelves = computed(() => {
           </span>
         </RouterLink>
       </template>
-      <template #empty><p class="cover-empty">没有匹配的歌单</p></template>
+      <template #empty><SearchEmpty>没有匹配的歌单</SearchEmpty></template>
     </CoverWall>
     <PlaylistForm v-if="create" @close="create = false" />
   </section>

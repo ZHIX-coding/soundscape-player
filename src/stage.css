@@ -113,10 +113,12 @@ body:has(.now-playing) {
   background: #14121642;
   border: 1px solid #f4f1ed18;
   font-size: 13px;
+  white-space: nowrap;
 }
 .now-tool svg {
   width: 17px;
   height: 17px;
+  flex: none;
 }
 .now-playing :focus-visible,
 .dock.now-dock :focus-visible {
@@ -314,6 +316,27 @@ body:has(.now-playing.controls-quiet) .dock.now-dock:focus-within {
   color: var(--now-muted);
   letter-spacing: 0;
 }
+.lyrics-panel.is-browsing {
+  border: 1px solid #e3cdc133;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #211920f5, #19141df0);
+}
+.is-browsing .lyrics {
+  --browse-height: max(0px, calc(100cqh - 54px));
+  height: var(--browse-height);
+  mask-image: linear-gradient(transparent, #000 10px, #000 calc(100% - 8px), transparent);
+  padding-block: calc(var(--browse-height) * var(--lyric-anchor) / 100)
+    calc(var(--browse-height) * (100 - var(--lyric-anchor)) / 100);
+  padding-inline: clamp(8px, 3%, 20px);
+  scroll-padding-block: 12px;
+}
+.is-browsing .lyrics button:not(.now),
+.is-browsing .lyric-time {
+  color: #d8cbd5;
+}
+.is-browsing .lyrics button:focus-visible {
+  outline-offset: -2px;
+}
 .resume-lyrics {
   position: absolute;
   bottom: 7px;
@@ -387,6 +410,24 @@ body:has(.now-playing.controls-quiet) .dock.now-dock:focus-within {
 .dock.now-dock .actions {
   gap: 0;
 }
+.dock.now-dock .mobile-playback-settings {
+  display: none;
+}
+.playback-panel .modal-header-actions .icon,
+.playback-panel label :is(input[type='range'], select) {
+  min-height: 44px;
+}
+.playback-panel .modal-header-actions .icon {
+  min-width: 44px;
+}
+.playback-panel label input[type='range'] {
+  margin-top: 0;
+}
+.playback-panel label select {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
 .reduce-motion *,
 body:has(.now-playing.reduce-motion) .now-dock {
   transition: none !important;
@@ -430,7 +471,7 @@ body:has(.now-playing.reduce-motion) .now-dock {
   .dock.now-dock {
     display: grid;
     grid-template-columns: minmax(28px, 1fr) minmax(0, 4fr) minmax(28px, 1fr);
-    grid-template-areas: 'elapsed progress duration' '. transport actions';
+    grid-template-areas: 'elapsed progress duration' 'settings transport actions';
     gap: 0 8px;
     padding: 4px 10px 7px;
     bottom: max(12px, calc(env(safe-area-inset-bottom) + 5px));
@@ -456,6 +497,11 @@ body:has(.now-playing.reduce-motion) .now-dock {
   .dock.now-dock .actions {
     grid-area: actions;
     justify-self: end;
+  }
+  .dock.now-dock .mobile-playback-settings {
+    display: grid;
+    grid-area: settings;
+    justify-self: start;
   }
   .dock.now-dock .wide-only {
     display: none;

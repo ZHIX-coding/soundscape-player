@@ -214,7 +214,10 @@ onBeforeUnmount(() => {
       >
         <div
           class="wall-repeats"
-          :class="{ 'wall-repeats-solo': tracks.length === 1 }"
+          :class="{
+            'wall-repeats-solo': tracks.length === 1,
+            'wall-repeats-short': edgeRows > 0,
+          }"
           aria-hidden="true"
         >
           <div class="wall-repeat-bands">
