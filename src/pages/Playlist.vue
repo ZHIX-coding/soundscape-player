@@ -48,6 +48,7 @@ function destroy() {
 <template>
   <TrackWall
     v-if="list || favorite"
+    show-count
     :label="favorite ? '我喜欢' : list.name"
     :tracks="tracks"
     :removable="!!list"
@@ -100,11 +101,7 @@ function destroy() {
     <RouterLink class="pill" to="/my">返回歌单</RouterLink>
   </div>
   <PlaylistForm v-if="panel === 'edit' && list" :list="list" @close="panel = ''" />
-  <Modal
-    v-if="panel === 'add' && list"
-    title="添加歌曲"
-    @close="closePicker"
-  >
+  <Modal v-if="panel === 'add' && list" title="添加歌曲" @close="closePicker">
     <input
       v-model="pickerQuery"
       type="search"

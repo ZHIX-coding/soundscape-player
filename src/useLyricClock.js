@@ -1,26 +1,13 @@
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { isLyricCredit } from './data/lrc'
+import { inject, onBeforeUnmount, watch } from 'vue'
+import { lyricTimelineKey, useLyricTimeline } from './useLyricTimeline'
 import { useAppearance } from './stores/appearance'
 import { usePlayer } from './stores/music'
 
 export function useLyricClock(surface) {
   const player = usePlayer()
   const appearance = useAppearance()
-  const lyrics = computed(() => (player.song?.lyrics ?? []).filter((line) => !isLyricCredit(line)))
-  const active = ref(-1)
-  const wordIndex = ref(-1)
-  const resting = computed(() => {
-    const line = lyrics.value[active.value]
-    const next = lyrics.value[active.value + 1]
-    return !!(
-      line &&
-      next &&
-      next.start - line.start > 10 &&
-      player.position > Math.max(line.end ?? line.start, line.start + 5.8) &&
-      next.start - player.position > 0.55
-    )
-  })
-  let cueTimer
+  const timeline = inject(lyricTimelineKey, useLyricTimeline, true)
+  const { lyrics, active, wordIndex, gap, upcoming, contextOnly } = timeline
   let paintFrame
   let disposed = false
   const systemMotion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -48,22 +35,6 @@ export function useLyricClock(surface) {
       paintFrame = requestAnimationFrame(paintWord)
   }
 
-  function sync() {
-    clearTimeout(cueTimer)
-    const time = player.mediaTime()
-    const timeline = lyrics.value
-    active.value = timeline.findLastIndex((line) => line.start <= time)
-    const words = timeline[active.value]?.words ?? []
-    wordIndex.value = words.findLastIndex((word) => word.start <= time)
-    nextTick(paintWord)
-    const next = Math.min(
-      words[wordIndex.value + 1]?.start ?? Infinity,
-      timeline[active.value + 1]?.start ?? Infinity,
-    )
-    if (player.playing && Number.isFinite(next))
-      cueTimer = setTimeout(sync, Math.max(16, Math.ceil((next - time) * 1000)))
-  }
-
   watch(
     [
       () => player.position,
@@ -71,18 +42,22 @@ export function useLyricClock(surface) {
       () => player.seekVersion,
       () => player.id,
       () => appearance.reduceMotion,
+      active,
+      wordIndex,
+      gap,
+      upcoming,
+      contextOnly,
     ],
-    sync,
-    { immediate: true },
+    paintWord,
+    { flush: 'post' },
   )
-  systemMotion.addEventListener('change', sync)
-  document.addEventListener('visibilitychange', sync)
+  systemMotion.addEventListener('change', paintWord)
+  document.addEventListener('visibilitychange', paintWord)
   onBeforeUnmount(() => {
-    systemMotion.removeEventListener('change', sync)
-    document.removeEventListener('visibilitychange', sync)
+    systemMotion.removeEventListener('change', paintWord)
+    document.removeEventListener('visibilitychange', paintWord)
     disposed = true
-    clearTimeout(cueTimer)
     cancelAnimationFrame(paintFrame)
   })
-  return { lyrics, active, wordIndex, resting, paintWord, motionAllowed }
+  return { ...timeline, paintWord, motionAllowed }
 }

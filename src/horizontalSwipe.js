@@ -23,7 +23,8 @@ export const vHorizontalSwipe = {
     listen('pointerdown', (event) => {
       if (!event.isPrimary || event.button !== 0) return
       suppressClick = false
-      if (!enabled()) return
+      if (!enabled() || (event.target instanceof HTMLInputElement && event.target.type === 'range'))
+        return
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, axis: '' }
     })
     listen('pointermove', (event) => {
@@ -76,7 +77,7 @@ export const vHorizontalSwipe = {
     listen(
       'wheel',
       (event) => {
-        if (!enabled() || event.ctrlKey || pointer) return
+        if (!enabled() || event.ctrlKey || event.metaKey || pointer) return
         const sideways = Math.abs(event.deltaX) > Math.abs(event.deltaY)
         if (!sideways && !event.shiftKey) return
         const delta = sideways ? event.deltaX : event.deltaY

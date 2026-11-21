@@ -19,7 +19,9 @@ let swallowClick = false
 let frame = 0
 
 function remember() {
-  positions.set(props.memoryKey, rail.value.scrollLeft)
+  const box = rail.value
+  if (!box) return
+  positions.set(props.memoryKey, box.scrollLeft)
   if (!frame) frame = requestAnimationFrame(preview)
 }
 

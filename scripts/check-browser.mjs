@@ -47,6 +47,10 @@ try {
   await button('暂停').waitFor()
   await link('正在播放').click()
   await click('暂停')
+  await click('显示')
+  await click('双栏')
+  await click('取色')
+  await click('关闭')
   const seek = page.getByRole('slider', { name: '播放进度', exact: true })
   const lyricGeometry = () =>
     page
@@ -116,7 +120,7 @@ try {
   await click('退出全屏')
   await page.setViewportSize({ width: 1440, height: 900 })
   await seek.fill('34.5')
-  await page.locator('.lyrics .now').filter({ hasText: '送给别人家' }).waitFor()
+  await page.locator('.lyrics .lyric-context').filter({ hasText: '送给别人家' }).waitFor()
   await click('播放')
   await syllable.filter({ hasText: '茉' }).waitFor()
   await click('暂停')
@@ -312,9 +316,23 @@ try {
     const card = document.querySelector('.wall-current').getBoundingClientRect()
     const center =
       rail.getBoundingClientRect().top +
-      (rail.clientHeight - parseFloat(getComputedStyle(rail).paddingBottom)) / 2
+      (rail.clientHeight -
+        parseFloat(getComputedStyle(rail).getPropertyValue('--wall-controls-space'))) /
+        2
     return Math.abs(card.top + card.height / 2 - center) < 2
   })
+  const queueProgress = page.getByRole('slider', { name: '当前曲目进度' })
+  const queueTrack = await cover.getAttribute('data-track-id')
+  await queueProgress.fill('5')
+  await queueProgress.press('ArrowRight')
+  assert(Number(await queueProgress.inputValue()) > 5)
+  assert.equal(await cover.getAttribute('data-track-id'), queueTrack)
+  const favorite = button('收藏当前曲目')
+  await favorite.click()
+  assert.equal(await favorite.getAttribute('aria-pressed'), 'true')
+  await click('更多操作')
+  assert(await button('已在播放队列').isDisabled())
+  await click('关闭')
   await click('列表')
   await click('上移 中文试听')
   const order = await page.locator('.queue-row .track b').allTextContents()

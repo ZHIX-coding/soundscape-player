@@ -26,7 +26,7 @@ const items = computed(() =>
 </script>
 
 <template>
-  <TrackWall v-if="selected" :label="selected.id" :tracks="selected.tracks">
+  <TrackWall v-if="selected" :label="selected.id" :tracks="selected.tracks" show-count>
     <template #back>
       <RouterLink to="/artists" class="icon" aria-label="返回歌手"><ChevronLeft /></RouterLink>
     </template>

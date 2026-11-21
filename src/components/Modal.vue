@@ -13,7 +13,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   box.value?.close()
-  previous?.focus()
+  previous?.focus({ preventScroll: true })
 })
 </script>
 <template>
